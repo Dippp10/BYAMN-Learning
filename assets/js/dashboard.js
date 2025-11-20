@@ -24,6 +24,246 @@ document.addEventListener('DOMContentLoaded', function() {
     // Achievements element
     const achievementsContainer = document.getElementById('achievements-container');
     
+    // Bookmarks elements
+    const bookmarkedCoursesContainer = document.getElementById('bookmarked-courses-container');
+    const bookmarksSection = document.getElementById('bookmarks-section');
+    const bookmarksCountElement = document.getElementById('bookmarks-count');
+    
+    // Store bookmarked courses
+    let bookmarkedCourses = [];
+    let allCourses = [];
+    let categoryMap = {};
+
+    // Load bookmarked courses
+    function loadBookmarkedCourses(userId) {
+        // Load from localStorage first (for immediate UI update)
+        loadBookmarksFromLocalStorage();
+        
+        // Then load from Firebase for logged-in users
+        if (userId && userId !== 'anonymous') {
+            firebaseServices.getUserBookmarks(userId)
+                .then(bookmarks => {
+                    bookmarkedCourses = bookmarks;
+                    renderBookmarkedCourses();
+                    updateBookmarksCount();
+                })
+                .catch(error => {
+                    console.error('Error loading bookmarks from Firebase:', error);
+                    // Fallback to localStorage
+                    loadBookmarksFromLocalStorage();
+                });
+        } else {
+            renderBookmarkedCourses();
+            updateBookmarksCount();
+        }
+    }
+
+    // Load bookmarks from localStorage
+    function loadBookmarksFromLocalStorage() {
+        try {
+            const saved = localStorage.getItem('bookmarkedCourses');
+            if (saved) {
+                const courseIds = JSON.parse(saved);
+                // Convert to bookmark objects format
+                bookmarkedCourses = courseIds.map(courseId => ({
+                    courseId: courseId,
+                    savedAt: new Date().toISOString()
+                }));
+            }
+        } catch (error) {
+            console.error('Error loading bookmarks from localStorage:', error);
+            bookmarkedCourses = [];
+        }
+    }
+
+    // Render bookmarked courses
+    function renderBookmarkedCourses() {
+        if (!bookmarkedCoursesContainer) return;
+
+        if (bookmarkedCourses.length === 0) {
+            bookmarkedCoursesContainer.innerHTML = `
+                <div class="text-center py-12 col-span-full">
+                    <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">No bookmarked courses</h3>
+                    <p class="mt-2 text-gray-500">Save courses you're interested in for later.</p>
+                    <div class="mt-6">
+                        <a href="../courses.html" class="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition duration-300 inline-flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Browse Courses
+                        </a>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Get course details for bookmarked courses
+        const bookmarkedCourseDetails = bookmarkedCourses
+            .map(bookmark => {
+                const course = allCourses.find(c => c.id === bookmark.courseId);
+                return course ? { ...course, savedAt: bookmark.savedAt } : null;
+            })
+            .filter(course => course !== null);
+
+        if (bookmarkedCourseDetails.length === 0) {
+            bookmarkedCoursesContainer.innerHTML = `
+                <div class="text-center py-12 col-span-full">
+                    <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">Bookmarked courses not found</h3>
+                    <p class="mt-2 text-gray-500">The courses you bookmarked may have been removed.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let bookmarksHTML = '';
+        bookmarkedCourseDetails.forEach(course => {
+            const categoryName = categoryMap[course.category] || course.category || 'General';
+            const savedDate = new Date(course.savedAt).toLocaleDateString();
+
+            bookmarksHTML += `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden hover-lift transition-all duration-300 course-card relative">
+                    <!-- Bookmark Button -->
+                    <button class="bookmark-btn bookmarked absolute top-4 right-4 z-10" 
+                            data-course-id="${course.id}"
+                            title="Remove from bookmarks">
+                        <svg class="h-6 w-6 bookmark-icon" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                    </button>
+                    
+                    <div class="h-48 overflow-hidden">
+                        <img 
+                            src="${course.thumbnail}" 
+                            alt="${course.title}" 
+                            class="w-full h-full object-cover"
+                            loading="lazy"
+                            onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxyZWN0IHg9IjMiIHk9IjQiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxMyIgcng9IjIiLz48cG9seWxpbmUgcG9pbnRzPSIxIDIwIDggMTMgMTMgMTgiLz48cG9seWxpbmUgcG9pbnRzPSIyMSAyMCAxNi41IDE1LjUgMTQgMTgiLz48bGluZSB4MT0iOSIgeDI9IjkiIHkxPSI5IiB5Mj0iOSIvPjwvc3ZnPg==';"
+                        >
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="flex justify-between items-start">
+                            <h3 class="text-xl font-bold text-gray-900 line-clamp-2">
+                                ${course.title}
+                            </h3>
+                        </div>
+                        
+                        <p class="mt-2 text-sm text-gray-500">
+                            ${categoryName} • ${course.difficulty || 'Beginner'}
+                        </p>
+                        
+                        <p class="mt-3 text-gray-600 line-clamp-2">
+                            ${course.description ? course.description.substring(0, 100) + '...' : 'No description available'}
+                        </p>
+                        
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                ${course.lessons ? course.lessons.length : 0} lessons
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                Saved on ${savedDate}
+                            </span>
+                        </div>
+                        
+                        <div class="mt-6 flex space-x-3">
+                            <a 
+                                href="../player.html?courseId=${course.id}" 
+                                class="flex-1 px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition duration-300 text-center"
+                            >
+                                Start Learning
+                            </a>
+                            <button class="remove-bookmark-btn px-4 py-2 rounded-md border border-red-300 text-red-700 font-medium hover:bg-red-50 transition duration-300 flex items-center justify-center"
+                                    data-course-id="${course.id}">
+                                <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        bookmarkedCoursesContainer.innerHTML = bookmarksHTML;
+
+        // Add event listeners to bookmark buttons
+        document.querySelectorAll('.bookmark-btn, .remove-bookmark-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const courseId = this.getAttribute('data-course-id');
+                toggleBookmark(courseId);
+            });
+        });
+    }
+
+    // Toggle bookmark for a course
+    function toggleBookmark(courseId) {
+        const user = firebaseServices.auth.currentUser;
+        const userId = user ? user.uid : 'anonymous';
+        
+        const isBookmarked = bookmarkedCourses.some(bookmark => bookmark.courseId === courseId);
+        
+        if (isBookmarked) {
+            // Remove bookmark
+            bookmarkedCourses = bookmarkedCourses.filter(bookmark => bookmark.courseId !== courseId);
+            if (user) {
+                firebaseServices.removeBookmark(userId, courseId).catch(error => {
+                    console.error('Error removing bookmark from Firebase:', error);
+                });
+            }
+        } else {
+            // Add bookmark
+            bookmarkedCourses.push({
+                courseId: courseId,
+                savedAt: new Date().toISOString()
+            });
+            if (user) {
+                firebaseServices.saveBookmark(userId, courseId, new Date().toISOString()).catch(error => {
+                    console.error('Error saving bookmark to Firebase:', error);
+                });
+            }
+        }
+        
+        // Update localStorage
+        try {
+            const courseIds = bookmarkedCourses.map(bookmark => bookmark.courseId);
+            localStorage.setItem('bookmarkedCourses', JSON.stringify(courseIds));
+        } catch (error) {
+            console.error('Error saving bookmarks to localStorage:', error);
+        }
+        
+        renderBookmarkedCourses();
+        updateBookmarksCount();
+        
+        // Show notification
+        const action = isBookmarked ? 'removed from' : 'saved to';
+        utils.showNotification(`Course ${action} bookmarks`, 'success');
+    }
+
+    // Update bookmarks count
+    function updateBookmarksCount() {
+        if (bookmarksCountElement) {
+            bookmarksCountElement.textContent = bookmarkedCourses.length;
+        }
+        
+        // Show/hide bookmarks section based on whether there are bookmarks
+        if (bookmarksSection) {
+            if (bookmarkedCourses.length > 0) {
+                bookmarksSection.style.display = 'block';
+            } else {
+                bookmarksSection.style.display = 'none';
+            }
+        }
+    }
+
     // Check auth state
     firebaseServices.onAuthStateChanged((user) => {
         if (user) {
@@ -35,8 +275,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 userNameElement.textContent = `Welcome, ${user.displayName || user.email}`;
             }
             
-            // Load user's enrollments
+            // Load user's enrollments and bookmarks
             loadUserEnrollments(user.uid);
+            loadBookmarkedCourses(user.uid);
         } else {
             // User is signed out
             console.log('User is signed out');
@@ -47,7 +288,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load user's enrollments
     function loadUserEnrollments(userId) {
         // Show loading state
-        coursesContainer.innerHTML = '<div class="text-center py-12 col-span-full"><svg class="animate-spin mx-auto h-12 w-12 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="mt-4 text-gray-600">Loading your courses...</p></div>';
+        if (coursesContainer) {
+            coursesContainer.innerHTML = '<div class="text-center py-12 col-span-full"><svg class="animate-spin mx-auto h-12 w-12 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="mt-4 text-gray-600">Loading your courses...</p></div>';
+        }
         
         // Fetch real data from Firebase
         Promise.all([
@@ -60,8 +303,11 @@ document.addEventListener('DOMContentLoaded', function() {
             firebaseServices.getUserEngagementScore(userId) // Fetch engagement score
         ])
         .then(([courses, userEnrollments, categories, userAnalytics, recommendationInteractions, learningPatterns, engagementScore]) => {
+            // Store all courses and category map for bookmarks
+            allCourses = courses;
+            
             // Create a map of category IDs to names
-            const categoryMap = {};
+            categoryMap = {};
             categories.forEach(category => {
                 categoryMap[category.id] = category.name;
             });
@@ -72,9 +318,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update analytics stats
             updateAnalyticsStats(userAnalytics);
             
-            // Update video analytics stats
-            updateVideoAnalyticsStats(userAnalytics);
-            
             // Render courses
             renderCourses(userEnrollments, courses, categoryMap);
             
@@ -83,9 +326,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Render analytics charts
             renderAnalyticsCharts(userAnalytics);
-            
-            // Render video analytics charts
-            renderVideoAnalyticsCharts(userAnalytics);
             
             // Render learning patterns analysis
             renderLearningPatterns(learningPatterns, engagementScore);
@@ -108,25 +348,29 @@ document.addEventListener('DOMContentLoaded', function() {
             utils.showNotification('Error loading dashboard data: ' + error.message, 'error');
             
             // Show error state
-            coursesContainer.innerHTML = `
-                <div class="text-center py-12 col-span-full">
-                    <svg class="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <h3 class="mt-4 text-lg font-medium text-gray-900">Error Loading Courses</h3>
-                    <p class="mt-2 text-gray-500">There was an error loading your courses. Please try again later.</p>
-                    <div class="mt-6">
-                        <button onclick="location.reload()" class="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition duration-300">
-                            Retry
-                        </button>
+            if (coursesContainer) {
+                coursesContainer.innerHTML = `
+                    <div class="text-center py-12 col-span-full">
+                        <svg class="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <h3 class="mt-4 text-lg font-medium text-gray-900">Error Loading Courses</h3>
+                        <p class="mt-2 text-gray-500">There was an error loading your courses. Please try again later.</p>
+                        <div class="mt-6">
+                            <button onclick="location.reload()" class="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition duration-300">
+                                Retry
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         });
     }
     
     // Update dashboard stats
     function updateStats(enrollments) {
+        if (!enrolledCountElement || !completedCountElement || !inProgressCountElement || !certificatesCountElement) return;
+        
         // Total enrolled
         enrolledCountElement.textContent = enrollments.length;
         
@@ -326,461 +570,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderAnalyticsCharts(analytics) {
         if (!analytics) {
             // Show empty state for analytics charts
-            if (studyTimeChartContainer) {
-                studyTimeChartContainer.innerHTML = `
-                    <div class="text-center text-gray-500">
-                        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <p class="mt-2">No analytics data available</p>
-                    </div>
-                `;
-            }
-            
-            if (activityChartContainer) {
-                activityChartContainer.innerHTML = `
-                    <div class="text-center text-gray-500">
-                        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <p class="mt-2">No activity data available</p>
-                    </div>
-                `;
-            }
-            
-            if (streakChartContainer) {
-                streakChartContainer.innerHTML = `
-                    <div class="text-center text-gray-500">
-                        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p class="mt-2">No streak data available</p>
-                    </div>
-                `;
-            }
-            return;
-        }
-        
-        // Categorize enrollments by progress
-        const progressCategories = {
-            'Not Started': 0,
-            '1-25%': 0,
-            '26-50%': 0,
-            '51-75%': 0,
-            '76-99%': 0,
-            'Completed': 0
-        };
-        
-        enrollments.forEach(enrollment => {
-            const progress = enrollment.progress || 0;
-            if (progress === 0) {
-                progressCategories['Not Started']++;
-            } else if (progress <= 25) {
-                progressCategories['1-25%']++;
-            } else if (progress <= 50) {
-                progressCategories['26-50%']++;
-            } else if (progress <= 75) {
-                progressCategories['51-75%']++;
-            } else if (progress < 100) {
-                progressCategories['76-99%']++;
-            } else {
-                progressCategories['Completed']++;
-            }
-        });
-        
-        // Render streak chart
-        if (streakChartContainer) {
-            renderStreakChart(analytics);
-        }
-    }
-    
-    // Render video analytics charts
-    function renderVideoAnalyticsCharts(analytics) {
-        const videoAnalyticsContainer = document.getElementById('video-analytics-container');
-        if (!videoAnalyticsContainer) return;
-        
-        if (!analytics || !analytics.videoDetails) {
-            videoAnalyticsContainer.innerHTML = `
-                <div class="text-center text-gray-500 py-8">
-                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <p class="mt-2">No video analytics data available yet. Watch some videos to see your engagement metrics!</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Aggregate video analytics data for charts
-        const videoData = aggregateVideoAnalyticsData(analytics.videoDetails);
-        
-        // Render video analytics charts
-        renderVideoEventsChart(videoData);
-        renderPlaybackSpeedChart(videoData);
-        renderEngagementTrendChart(videoData);
-    }
-    
-    // Aggregate video analytics data for charts
-    function aggregateVideoAnalyticsData(videoDetails) {
-        const aggregated = {
-            dailyEvents: {}, // Play/pause events by date
-            speedDistribution: {}, // Playback speed usage
-            engagementTrend: {}, // Engagement score over time
-            lessonEngagement: [] // Engagement by lesson
-        };
-        
-        // Process video details for each course and lesson
-        Object.entries(videoDetails || {}).forEach(([courseId, course]) => {
-            Object.entries(course || {}).forEach(([lessonId, lesson]) => {
-                if (lesson && lesson.lastUpdated) {
-                    const date = lesson.lastUpdated.split('T')[0]; // Extract date part
-                    
-                    // Aggregate daily events
-                    if (!aggregated.dailyEvents[date]) {
-                        aggregated.dailyEvents[date] = { playEvents: 0, pauseEvents: 0, seekEvents: 0 };
-                    }
-                    aggregated.dailyEvents[date].playEvents += lesson.playEvents || 0;
-                    aggregated.dailyEvents[date].pauseEvents += lesson.pauseEvents || 0;
-                    aggregated.dailyEvents[date].seekEvents += lesson.seekEvents || 0;
-                    
-                    // Aggregate speed distribution
-                    const avgSpeed = lesson.playbackSpeedChanges > 0 ? 
-                        (lesson.maxPlaybackSpeed + lesson.minPlaybackSpeed) / 2 : 1.0;
-                    const speedKey = `${Math.floor(avgSpeed * 2) / 2}x`; // Round to nearest 0.5x
-                    aggregated.speedDistribution[speedKey] = (aggregated.speedDistribution[speedKey] || 0) + 1;
-                    
-                    // Calculate engagement for this lesson
-                    const playPauseRatio = (lesson.pauseEvents || 0) > 0 ? 
-                        (lesson.playEvents || 0) / (lesson.pauseEvents || 0) : (lesson.playEvents || 0);
-                    const seekPenalty = Math.min(100, (lesson.seekEvents || 0) / 10);
-                    const engagement = Math.max(0, Math.min(100, (playPauseRatio * 10) - seekPenalty));
-                    
-                    aggregated.lessonEngagement.push({
-                        lessonId,
-                        engagement: Math.round(engagement),
-                        playEvents: lesson.playEvents || 0,
-                        pauseEvents: lesson.pauseEvents || 0,
-                        seekEvents: lesson.seekEvents || 0,
-                        playbackSpeedChanges: lesson.playbackSpeedChanges || 0,
-                        maxPlaybackSpeed: lesson.maxPlaybackSpeed || 1.0,
-                        minPlaybackSpeed: lesson.minPlaybackSpeed || 1.0
-                    });
-                }
-            });
-        });
-        
-        return aggregated;
-    }
-    
-    // Render video events chart
-    function renderVideoEventsChart(videoData) {
-        const eventsChartContainer = document.getElementById('video-events-chart');
-        if (!eventsChartContainer) return;
-        
-        const dates = Object.keys(videoData.dailyEvents).sort().slice(-14); // Last 14 days
-        if (dates.length === 0) {
-            eventsChartContainer.innerHTML = `
-                <div class="text-center text-gray-500">
-                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <p class="mt-2">No video events data available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Prepare data for chart
-        const playEvents = dates.map(date => videoData.dailyEvents[date].playEvents || 0);
-        const pauseEvents = dates.map(date => videoData.dailyEvents[date].pauseEvents || 0);
-        const maxEvents = Math.max(...playEvents, ...pauseEvents, 1);
-        
-        // Generate chart HTML
-        const chartHTML = `
-            <div class="w-full h-full flex flex-col">
-                <div class="flex items-end flex-1 space-x-1 md:space-x-2 px-2 py-4">
-                    ${dates.map((date, index) => {
-                        const playHeight = Math.max(5, (playEvents[index] / maxEvents) * 100);
-                        const pauseHeight = Math.max(5, (pauseEvents[index] / maxEvents) * 100);
-                        const day = new Date(date).getDate();
-                        
-                        return `
-                            <div class="flex flex-col items-center flex-1 group min-w-[25px]">
-                                <div class="flex items-end justify-center w-full space-x-px">
-                                    <div class="w-1/2 bg-blue-500 rounded-t transition-all duration-700 ease-out" 
-                                         style="height: ${playHeight}%" title="Play events: ${playEvents[index]}">
-                                    </div>
-                                    <div class="w-1/2 bg-amber-500 rounded-t transition-all duration-700 ease-out" 
-                                         style="height: ${pauseHeight}%" title="Pause events: ${pauseEvents[index]}">
-                                    </div>
-                                </div>
-                                <div class="text-xs text-gray-600 mt-1 text-center font-semibold">${day}</div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <div class="mt-4 md:mt-6 text-center">
-                    <p class="text-sm text-gray-600 font-medium">Video Events (Last 14 Days)</p>
-                    <div class="flex justify-center mt-2 space-x-4">
-                        <div class="flex items-center">
-                            <div class="w-3 h-3 bg-blue-500 rounded mr-1"></div>
-                            <span class="text-xs text-gray-600">Play Events</span>
-                        </div>
-                        <div class="flex items-center">
-                            <div class="w-3 h-3 bg-amber-500 rounded mr-1"></div>
-                            <span class="text-xs text-gray-600">Pause Events</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        eventsChartContainer.innerHTML = chartHTML;
-    }
-    
-    // Render playback speed chart
-    function renderPlaybackSpeedChart(videoData) {
-        const speedChartContainer = document.getElementById('playback-speed-chart');
-        if (!speedChartContainer) return;
-        
-        const speeds = Object.keys(videoData.speedDistribution).sort();
-        if (speeds.length === 0) {
-            speedChartContainer.innerHTML = `
-                <div class="text-center text-gray-500">
-                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p class="mt-2">No playback speed data available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Prepare data for chart
-        const counts = speeds.map(speed => videoData.speedDistribution[speed]);
-        const maxCount = Math.max(...counts, 1);
-        
-        // Generate chart HTML
-        const chartHTML = `
-            <div class="w-full h-full flex flex-col">
-                <div class="flex items-end flex-1 space-x-2 md:space-x-3 px-2 py-4">
-                    ${speeds.map((speed, index) => {
-                        const heightPercent = Math.max(10, (counts[index] / maxCount) * 100);
-                        
-                        return `
-                            <div class="flex flex-col items-center flex-1 group min-w-[40px]">
-                                <div class="text-xs text-gray-500 mb-1 font-bold">${counts[index]}</div>
-                                <div class="w-3/4 md:w-3/4 bg-gradient-to-t from-purple-500 to-indigo-600 rounded-t-lg transition-all duration-700 ease-out hover:opacity-90 hover:shadow-lg transform hover:-translate-y-1" 
-                                     style="height: ${heightPercent}%">
-                                </div>
-                                <div class="text-xs text-gray-600 mt-2 text-center truncate w-full px-1 font-semibold">${speed}</div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <div class="mt-4 md:mt-6 text-center">
-                    <p class="text-sm text-gray-600 font-medium">Playback Speed Distribution</p>
-                </div>
-            </div>
-        `;
-        
-        speedChartContainer.innerHTML = chartHTML;
-    }
-    
-    // Render engagement trend chart
-    function renderEngagementTrendChart(videoData) {
-        const trendChartContainer = document.getElementById('engagement-trend-chart');
-        if (!trendChartContainer) return;
-        
-        // Sort lessons by engagement
-        const sortedLessons = [...videoData.lessonEngagement].sort((a, b) => b.engagement - a.engagement).slice(0, 10);
-        if (sortedLessons.length === 0) {
-            trendChartContainer.innerHTML = `
-                <div class="text-center text-gray-500">
-                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <p class="mt-2">No engagement data available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Prepare data for chart
-        const engagements = sortedLessons.map(lesson => lesson.engagement);
-        const maxEngagement = Math.max(...engagements, 1);
-        
-        // Generate chart HTML
-        const chartHTML = `
-            <div class="w-full h-full flex flex-col">
-                <div class="flex items-end flex-1 space-x-1 md:space-x-2 px-2 py-4">
-                    ${sortedLessons.map((lesson, index) => {
-                        const heightPercent = Math.max(5, (engagements[index] / maxEngagement) * 100);
-                        const lessonLabel = `L${index + 1}`; // Simplified label
-                        
-                        return `
-                            <div class="flex flex-col items-center flex-1 group min-w-[20px]">
-                                <div class="text-xs text-gray-500 mb-1 font-bold">${engagements[index]}%</div>
-                                <div class="w-full bg-gradient-to-t from-green-500 to-emerald-600 rounded-t-lg transition-all duration-700 ease-out hover:opacity-90 hover:shadow-lg transform hover:-translate-y-1" 
-                                     style="height: ${heightPercent}%">
-                                </div>
-                                <div class="text-xs text-gray-600 mt-1 text-center font-semibold truncate" title="Lesson ID: ${lesson.lessonId}">${lessonLabel}</div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <div class="mt-4 md:mt-6 text-center">
-                    <p class="text-sm text-gray-600 font-medium">Top Lessons by Engagement</p>
-                </div>
-            </div>
-        `;
-        
-        trendChartContainer.innerHTML = chartHTML;
-    }
-    
-    // Render progress distribution chart
-    function renderProgressChart(enrollments) {
-        const container = document.getElementById('progress-chart-container');
-        if (!container) return;
-        
-        // Calculate progress distribution
-        const notStarted = enrollments.filter(e => e.progress === 0).length;
-        const inProgress = enrollments.filter(e => e.progress > 0 && e.progress < 100).length;
-        const completed = enrollments.filter(e => e.progress === 100).length;
-        const total = enrollments.length;
-        
-        // Donut chart implementation for learning progress
-        const chartHTML = `
-            <div class="w-full h-full flex flex-col items-center justify-center">
-                <div class="relative w-48 h-48 mb-6">
-                    <!-- Donut chart background -->
-                    <div class="absolute inset-0 rounded-full border-8 border-gray-200"></div>
-                    
-                    <!-- Not Started segment -->
-                    <div class="absolute inset-0 rounded-full border-8 border-gray-400 clip-segment" 
-                         style="clip-path: ${getClipPath(0, (notStarted / Math.max(1, total)) * 100)};"></div>
-                    
-                    <!-- In Progress segment -->
-                    <div class="absolute inset-0 rounded-full border-8 border-amber-500 clip-segment" 
-                         style="clip-path: ${getClipPath((notStarted / Math.max(1, total)) * 100, ((notStarted + inProgress) / Math.max(1, total)) * 100)};"></div>
-                    
-                    <!-- Completed segment -->
-                    <div class="absolute inset-0 rounded-full border-8 border-green-500 clip-segment" 
-                         style="clip-path: ${getClipPath(((notStarted + inProgress) / Math.max(1, total)) * 100, 100)};"></div>
-                    
-                    <!-- Center label -->
-                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <span class="text-2xl font-bold text-gray-900">${total}</span>
-                        <span class="text-sm text-gray-500">Total Courses</span>
-                    </div>
-                </div>
-                
-                <!-- Legend -->
-                <div class="flex flex-wrap justify-center gap-4 mt-4">
-                    <div class="flex items-center">
-                        <div class="w-4 h-4 bg-gray-400 rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">Not Started (${notStarted})</span>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-4 h-4 bg-amber-500 rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">In Progress (${inProgress})</span>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">Completed (${completed})</span>
-                    </div>
-                </div>
-                <div class="mt-6 text-center">
-                    <p class="text-sm text-gray-500">Course progress distribution</p>
-                </div>
-            </div>
-        `;
-        
-        container.innerHTML = chartHTML;
-    }
-    
-    // Render category chart
-    function renderCategoryChart(enrollments, courses, categoryMap) {
-        const container = document.getElementById('category-chart-container');
-        if (!container) return;
-        
-        if (enrollments.length === 0 || courses.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-500">
-                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p class="mt-2">No category data available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Count courses by category
-        const categoryCount = {};
-        enrollments.forEach(enrollment => {
-            const course = courses.find(c => c.id === enrollment.courseId);
-            if (course && course.category) {
-                const categoryName = categoryMap[course.category] || course.category;
-                categoryCount[categoryName] = (categoryCount[categoryName] || 0) + 1;
-            }
-        });
-        
-        // If no categories found, show message
-        if (Object.keys(categoryCount).length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-500">
-                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p class="mt-2">No category data available</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Generate chart HTML
-        let chartHTML = `
-            <div class="flex items-end justify-between h-48 px-2">
-        `;
-        
-        const categories = Object.keys(categoryCount);
-        const values = Object.values(categoryCount);
-        const maxValue = Math.max(...values, 1); // Avoid division by zero
-        
-        categories.forEach((category, index) => {
-            const value = values[index];
-            const heightPercent = (value / maxValue) * 80; // Max 80% height
-            chartHTML += `
-                <div class="flex flex-col items-center flex-1 px-1">
-                    <div class="flex flex-col items-center justify-end w-full h-full">
-                        <div class="w-3/4 bg-purple-500 rounded-t" style="height: ${heightPercent}%; min-height: 4px;"></div>
-                    </div>
-                    <div class="mt-2 text-center">
-                        <p class="text-xs font-medium text-gray-900">${value}</p>
-                        <p class="text-xs text-gray-500 truncate">${category}</p>
-                    </div>
-                </div>
-            `;
-        });
-        
-        chartHTML += `
-            </div>
-            <div class="mt-6 text-center">
-                <p class="text-sm text-gray-500">Enrolled courses by category</p>
-            </div>
-        `;
-        
-        container.innerHTML = chartHTML;
-    }
-    
-    // Render analytics charts
-    function renderAnalyticsCharts(analytics) {
-        if (!analytics) {
-            // Show empty state for analytics charts
             renderEmptyChart('study-time-chart-container', 'Study Time');
             renderEmptyChart('activity-chart-container', 'Activity');
             renderEmptyChart('streak-chart-container', 'Study Streak');
@@ -795,6 +584,21 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Render streak chart
         renderStreakChart(analytics);
+    }
+    
+    // Render empty chart state
+    function renderEmptyChart(containerId, chartName) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="text-center text-gray-500">
+                <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <p class="mt-2">No ${chartName.toLowerCase()} data available</p>
+            </div>
+        `;
     }
     
     // Render study time chart
@@ -945,6 +749,79 @@ document.addEventListener('DOMContentLoaded', function() {
         container.innerHTML = chartHTML;
     }
     
+    // Render progress distribution chart
+    function renderProgressChart(enrollments) {
+        const container = document.getElementById('progress-chart-container');
+        if (!container) return;
+        
+        // Calculate progress distribution
+        const notStarted = enrollments.filter(e => e.progress === 0).length;
+        const inProgress = enrollments.filter(e => e.progress > 0 && e.progress < 100).length;
+        const completed = enrollments.filter(e => e.progress === 100).length;
+        const total = enrollments.length;
+        
+        if (total === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-500">
+                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <p class="mt-2">No progress data available</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Donut chart implementation for learning progress
+        const chartHTML = `
+            <div class="w-full h-full flex flex-col items-center justify-center">
+                <div class="relative w-48 h-48 mb-6">
+                    <!-- Donut chart background -->
+                    <div class="absolute inset-0 rounded-full border-8 border-gray-200"></div>
+                    
+                    <!-- Not Started segment -->
+                    <div class="absolute inset-0 rounded-full border-8 border-gray-400 clip-segment" 
+                         style="clip-path: ${getClipPath(0, (notStarted / Math.max(1, total)) * 100)};"></div>
+                    
+                    <!-- In Progress segment -->
+                    <div class="absolute inset-0 rounded-full border-8 border-amber-500 clip-segment" 
+                         style="clip-path: ${getClipPath((notStarted / Math.max(1, total)) * 100, ((notStarted + inProgress) / Math.max(1, total)) * 100)};"></div>
+                    
+                    <!-- Completed segment -->
+                    <div class="absolute inset-0 rounded-full border-8 border-green-500 clip-segment" 
+                         style="clip-path: ${getClipPath(((notStarted + inProgress) / Math.max(1, total)) * 100, 100)};"></div>
+                    
+                    <!-- Center label -->
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span class="text-2xl font-bold text-gray-900">${total}</span>
+                        <span class="text-sm text-gray-500">Total Courses</span>
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div class="flex flex-wrap justify-center gap-4 mt-4">
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 bg-gray-400 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600">Not Started (${notStarted})</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 bg-amber-500 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600">In Progress (${inProgress})</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600">Completed (${completed})</span>
+                    </div>
+                </div>
+                <div class="mt-6 text-center">
+                    <p class="text-sm text-gray-500">Course progress distribution</p>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = chartHTML;
+    }
+    
     // Helper function to generate clip path for donut chart segments
     function getClipPath(startPercent, endPercent) {
         // Convert percentages to angles (0-360 degrees)
@@ -966,9 +843,24 @@ document.addEventListener('DOMContentLoaded', function() {
             return `polygon(50% 50%, 0% 50%, 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 50%, 50% 50%)`;
         }
     }
-
+    
     // Render category distribution chart
     function renderCategoryChart(enrollments, courses, categoryMap) {
+        const container = document.getElementById('category-chart-container');
+        if (!container) return;
+        
+        if (enrollments.length === 0 || courses.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-500">
+                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p class="mt-2">No category data available</p>
+                </div>
+            `;
+            return;
+        }
+        
         // Match enrollments with courses to get categories
         const enrichedEnrollments = enrollments.map(enrollment => {
             const course = courses.find(c => c.id === enrollment.courseId);
@@ -995,7 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .slice(0, 5); // Top 5 categories
         
         if (sortedCategories.length === 0) {
-            categoryChartContainer.innerHTML = `
+            container.innerHTML = `
                 <div class="text-center text-gray-500">
                     <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 012-2m0 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -1055,6 +947,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
+        
+        container.innerHTML = chartHTML;
     }
     
     // Render courses
@@ -1210,156 +1104,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
     
-    // Update achievements
-    function updateAchievements(achievements, userId) {
-        const achievementsContainer = document.getElementById('achievements-container');
-        if (!achievementsContainer) return;
-        
-        // Filter earned achievements
-        const earnedAchievements = achievements.filter(achievement => achievement.earned);
-        
-        // Render achievements
-        if (earnedAchievements.length > 0) {
-            let achievementsHTML = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
-            
-            earnedAchievements.forEach(achievement => {
-                achievementsHTML += `
-                    <div class="bg-white rounded-lg shadow p-4 flex items-center">
-                        <div class="flex-shrink-0 h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <h4 class="text-lg font-medium text-gray-900">${achievement.name}</h4>
-                            <p class="text-gray-600">${achievement.description}</p>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            achievementsHTML += '</div>';
-            achievementsContainer.innerHTML = achievementsHTML;
-        } else {
-            achievementsContainer.innerHTML = `
-                <div class="text-center py-8">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.982 8.982M12 2.944a11.955 11.955 0 018.982 8.982M5.018 15.018A8.96 8.96 0 0112 12a8.96 8.96 0 016.982 3.018M12 12v9m-4-9h8" />
-                    </svg>
-                    <h3 class="mt-2 text-lg font-medium text-gray-900">No achievements yet</h3>
-                    <p class="mt-1 text-gray-500">Complete courses and maintain streaks to earn achievements.</p>
-                </div>
-            `;
-        }
-    }
-    
-    // Handle logout
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function() {
-            firebaseServices.signOut()
-                .then(() => {
-                    window.location.href = '../auth/login.html';
-                })
-                .catch((error) => {
-                    console.error('Logout error:', error);
-                    utils.showNotification('Logout failed: ' + error.message, 'error');
-                });
-        });
-    }
-    
-    // Advanced analytics functions
-    
-    // Analyze learning patterns
-    function analyzeLearningPatterns(analytics) {
-        if (!analytics || !analytics.dailyActivity) return null;
-        
-        const dailyActivity = analytics.dailyActivity;
-        const dates = Object.keys(dailyActivity).sort();
-        
-        // Calculate learning consistency
-        let totalDays = 0;
-        let activeDays = 0;
-        let totalStudyTime = 0;
-        let totalTimeStudied = 0;
-        
-        dates.forEach(date => {
-            totalDays++;
-            const activity = dailyActivity[date];
-            if (activity.studyTime > 0) {
-                activeDays++;
-                totalTimeStudied += activity.studyTime;
-            }
-            totalStudyTime += activity.studyTime || 0;
-        });
-        
-        // Calculate consistency percentage
-        const consistency = totalDays > 0 ? (activeDays / totalDays) * 100 : 0;
-        
-        // Calculate average study time per active day
-        const avgStudyTime = activeDays > 0 ? totalTimeStudied / activeDays : 0;
-        
-        // Find peak learning hours (simplified - would need more detailed data)
-        const peakHours = findPeakLearningHours(dailyActivity);
-        
-        // Calculate learning velocity (improvement over time)
-        const learningVelocity = calculateLearningVelocity(dailyActivity);
-        
-        return {
-            consistency: Math.round(consistency),
-            avgStudyTime: Math.round(avgStudyTime),
-            totalTimeStudied: Math.round(totalTimeStudied),
-            peakHours: peakHours,
-            learningVelocity: learningVelocity,
-            activeDays: activeDays,
-            totalDays: totalDays
-        };
-    }
-    
-    // Find peak learning hours
-    function findPeakLearningHours(dailyActivity) {
-        // This is a simplified version - in a real implementation, 
-        // we would have more granular time data
-        const hourCounts = {};
-        
-        // For now, we'll just return a generic peak time
-        return {
-            morning: 30, // 6-12 AM
-            afternoon: 40, // 12-6 PM
-            evening: 30 // 6-12 PM
-        };
-    }
-    
-    // Calculate learning velocity
-    function calculateLearningVelocity(dailyActivity) {
-        const dates = Object.keys(dailyActivity).sort();
-        if (dates.length < 2) return 0;
-        
-        // Get first and last week data
-        const firstWeek = dates.slice(0, 7);
-        const lastWeek = dates.slice(-7);
-        
-        // Calculate average study time for each period
-        let firstWeekTotal = 0;
-        let lastWeekTotal = 0;
-        
-        firstWeek.forEach(date => {
-            firstWeekTotal += dailyActivity[date].studyTime || 0;
-        });
-        
-        lastWeek.forEach(date => {
-            lastWeekTotal += dailyActivity[date].studyTime || 0;
-        });
-        
-        const firstWeekAvg = firstWeekTotal / firstWeek.length;
-        const lastWeekAvg = lastWeekTotal / lastWeek.length;
-        
-        // Calculate percentage change
-        if (firstWeekAvg === 0) return lastWeekAvg > 0 ? 100 : 0;
-        
-        return Math.round(((lastWeekAvg - firstWeekAvg) / firstWeekAvg) * 100);
-    }
-    
-    // Enhanced render learning patterns analysis
+    // Render learning patterns analysis
     function renderLearningPatterns(patterns, engagementScore) {
         const patternsContainer = document.getElementById('learning-patterns-container');
         if (!patternsContainer) return;
@@ -1453,7 +1198,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="flex items-center mb-4">
                         <div class="p-2 rounded-lg bg-purple-100">
                             <svg class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                             </svg>
                         </div>
                         <h3 class="ml-3 text-lg font-semibold text-gray-900">Engagement Score</h3>
@@ -1462,32 +1207,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         <p class="text-2xl font-bold ${engagementColor}">${engagementScore}/100</p>
                         <p class="mt-1 text-sm text-gray-600">${engagementLevel} engagement</p>
                         <p class="mt-2 text-sm text-gray-600">Based on consistency, study time, and progress</p>
-                    </div>
-                </div>
-                
-                <div class="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-100 md:col-span-2">
-                    <div class="flex items-center mb-4">
-                        <div class="p-2 rounded-lg bg-cyan-100">
-                            <svg class="h-6 w-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <h3 class="ml-3 text-lg font-semibold text-gray-900">Learning Streak</h3>
-                    </div>
-                    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white rounded-lg p-4 shadow-sm">
-                            <p class="text-sm text-gray-600">Current Streak</p>
-                            <p class="text-2xl font-bold text-amber-600">${patterns.currentStreak} days</p>
-                        </div>
-                        <div class="bg-white rounded-lg p-4 shadow-sm">
-                            <p class="text-sm text-gray-600">Longest Streak</p>
-                            <p class="text-2xl font-bold text-green-600">${patterns.longestStreak} days</p>
-                        </div>
-                        <div class="bg-white rounded-lg p-4 shadow-sm">
-                            <p class="text-sm text-gray-600">Category Focus</p>
-                            <p class="text-lg font-bold text-indigo-600">${Object.keys(patterns.categoryDistribution).length > 0 ? 
-                                Object.entries(patterns.categoryDistribution).sort((a, b) => b[1] - a[1])[0][0] : 'None'}</p>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1592,46 +1311,43 @@ document.addEventListener('DOMContentLoaded', function() {
         recommendationsContainer.innerHTML = recommendationsHTML;
     }
     
-    // Render achievements
-    function renderAchievements(achievements) {
-        const achievementsContainer = document.getElementById('achievements-container');
-        if (!achievementsContainer) return;
-        
-        if (!achievements || achievements.length === 0) {
-            achievementsContainer.innerHTML = `
-                <div class="text-center text-gray-500 py-8">
-                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                    </svg>
-                    <p class="mt-2">No achievements yet. Complete courses to earn badges!</p>
-                </div>
-            `;
-            return;
+    // Helper function to normalize date
+    function getNormalizedDate(dateValue) {
+        if (!dateValue) return new Date(0);
+
+        // Handle Firebase Timestamp objects
+        if (dateValue._seconds !== undefined) {
+            return new Date(dateValue._seconds * 1000);
         }
-        
-        let achievementsHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">';
-        
-        achievements.forEach(achievement => {
-            achievementsHTML += `
-                <div class="bg-white rounded-lg shadow-sm p-4 border ${achievement.earned ? 'border-green-200 bg-green-50' : 'border-gray-200'}">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 ${achievement.earned ? 'text-green-500' : 'text-gray-400'}">
-                            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <h4 class="text-sm font-medium ${achievement.earned ? 'text-green-800' : 'text-gray-800'}">${achievement.name}</h4>
-                            <p class="text-xs ${achievement.earned ? 'text-green-600' : 'text-gray-500'}">${achievement.earned ? 'Earned' : 'Locked'}</p>
-                        </div>
-                    </div>
-                    <p class="mt-2 text-xs text-gray-600">${achievement.description}</p>
-                </div>
-            `;
-        });
-        
-        achievementsHTML += '</div>';
-        achievementsContainer.innerHTML = achievementsHTML;
+
+        // Handle Unix timestamps (numbers)
+        if (typeof dateValue === 'number') {
+            // Check if it's in seconds or milliseconds
+            if (dateValue > 10000000000) {
+                // Milliseconds
+                return new Date(dateValue);
+            } else {
+                // Seconds
+                return new Date(dateValue * 1000);
+            }
+        }
+
+        // Handle string dates
+        if (typeof dateValue === 'string') {
+            // Try to parse the string date
+            const parsedDate = new Date(dateValue);
+            if (!isNaN(parsedDate.getTime())) {
+                return parsedDate;
+            }
+        }
+
+        // Handle Date objects
+        if (dateValue instanceof Date) {
+            return dateValue;
+        }
+
+        // Fallback
+        return new Date(0);
     }
     
     // Get course recommendations based on user analytics and enrollments
@@ -1752,4 +1468,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .slice(0, 6); // Return top 6 recommendations
     }
     
+    // Handle logout
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            firebaseServices.signOut()
+                .then(() => {
+                    window.location.href = '../auth/login.html';
+                })
+                .catch((error) => {
+                    console.error('Logout error:', error);
+                    utils.showNotification('Logout failed: ' + error.message, 'error');
+                });
+        });
+    }
 });

@@ -118,6 +118,48 @@ window.firebaseServices = {
     doc: (path, id) => doc(db, path, id),
     collection: (path) => collection(db, path),
 
+    // Bookmark functions
+    saveBookmark: async (userId, courseId, savedAt) => {
+        try {
+            const bookmarkRef = ref(rtdb, `users/${userId}/bookmarks/${courseId}`);
+            await set(bookmarkRef, {
+                courseId: courseId,
+                savedAt: savedAt
+            });
+            return true;
+        } catch (error) {
+            console.error('Error saving bookmark:', error);
+            throw error;
+        }
+    },
+
+    removeBookmark: async (userId, courseId) => {
+        try {
+            const bookmarkRef = ref(rtdb, `users/${userId}/bookmarks/${courseId}`);
+            await remove(bookmarkRef);
+            return true;
+        } catch (error) {
+            console.error('Error removing bookmark:', error);
+            throw error;
+        }
+    },
+
+    getUserBookmarks: async (userId) => {
+        try {
+            const bookmarksRef = ref(rtdb, `users/${userId}/bookmarks`);
+            const snapshot = await get(bookmarksRef);
+            
+            if (snapshot.exists()) {
+                const bookmarks = snapshot.val();
+                return Object.values(bookmarks);
+            }
+            return [];
+        } catch (error) {
+            console.error('Error getting user bookmarks:', error);
+            throw error;
+        }
+    },
+
     // Helper functions for data operations
     getCourses: async () => {
         try {
@@ -230,7 +272,6 @@ window.firebaseServices = {
                 completed: completionStatus,
                 lastAccessed: new Date().toISOString(),
                 accesses: (existingData.accesses || 0) + 1
-                lastAccessed: new Date().toISOString()
             };
             await set(lessonAnalyticsRef, lessonData);
             
@@ -238,13 +279,13 @@ window.firebaseServices = {
             
             // Get current analytics data
             const snapshot = await get(userAnalyticsRef);
-            const currentData = snapshot.val() || {};
+            const currentAnalyticsData = snapshot.val() || {};
             
             // Update streak tracking
             const today = new Date().toISOString().split('T')[0];
-            let currentStreak = currentData.currentStreak || 0;
-            let longestStreak = currentData.longestStreak || 0;
-            const lastActiveDate = currentData.lastActiveDate;
+            let currentStreak = currentAnalyticsData.currentStreak || 0;
+            let longestStreak = currentAnalyticsData.longestStreak || 0;
+            const lastActiveDate = currentAnalyticsData.lastActiveDate;
             
             // Check if we need to update streak
             if (!lastActiveDate || lastActiveDate !== today) {
@@ -269,8 +310,8 @@ window.firebaseServices = {
             }
             
             const userData = {
-                totalStudyTime: (currentData.totalStudyTime || 0) + timeSpent,
-                lessonsCompleted: completionStatus ? (currentData.lessonsCompleted || 0) + 1 : currentData.lessonsCompleted || 0,
+                totalStudyTime: (currentAnalyticsData.totalStudyTime || 0) + timeSpent,
+                lessonsCompleted: completionStatus ? (currentAnalyticsData.lessonsCompleted || 0) + 1 : currentAnalyticsData.lessonsCompleted || 0,
                 lastActiveDate: today,
                 currentStreak: currentStreak,
                 longestStreak: longestStreak
@@ -708,7 +749,6 @@ window.firebaseServices = {
     // Function to track recommendation interactions
     trackRecommendationInteraction: async (userId, courseId, interactionType) => {
         try {
-            const { ref, get, update } = await import("firebase/database");
             const interactionsRef = ref(rtdb, `userAnalytics/${userId}/recommendationInteractions/${courseId}`);
             const snapshot = await get(interactionsRef);
             
@@ -735,7 +775,6 @@ window.firebaseServices = {
     // Function to get user's recommendation interactions
     getUserRecommendationInteractions: async (userId) => {
         try {
-            const { ref, get } = await import("firebase/database");
             const interactionsRef = ref(rtdb, `userAnalytics/${userId}/recommendationInteractions`);
             const snapshot = await get(interactionsRef);
             
@@ -753,12 +792,12 @@ window.firebaseServices = {
     // Function to update user's favorite categories based on interactions
     updateUserFavoriteCategories: async (userId) => {
         try {
-            const interactions = await firebaseServices.getUserRecommendationInteractions(userId);
+            const interactions = await window.firebaseServices.getUserRecommendationInteractions(userId);
             const categoryCount = {};
             
             // Count interactions per category
             for (const courseId in interactions) {
-                const course = await firebaseServices.getCourse(courseId);
+                const course = await window.firebaseServices.getCourse(courseId);
                 if (course && course.categories) {
                     course.categories.forEach(category => {
                         categoryCount[category] = (categoryCount[category] || 0) + 1;
@@ -767,7 +806,6 @@ window.firebaseServices = {
             }
             
             // Update user analytics with favorite categories
-            const { ref, update } = await import("firebase/database");
             const analyticsRef = ref(rtdb, `userAnalytics/${userId}`);
             await update(analyticsRef, { favoriteCategories: categoryCount });
             
@@ -781,7 +819,7 @@ window.firebaseServices = {
     // Smart search function for courses
     smartSearchCourses: async (query, filters = {}) => {
         try {
-            const courses = await firebaseServices.getCourses();
+            const courses = await window.firebaseServices.getCourses();
             const filteredCourses = courses.filter(course => {
                 // Filter by query
                 if (query) {
@@ -815,7 +853,7 @@ window.firebaseServices = {
     // Get available languages for filtering
     getAvailableLanguages: async () => {
         try {
-            const courses = await firebaseServices.getCourses();
+            const courses = await window.firebaseServices.getCourses();
             const languages = new Set();
             
             courses.forEach(course => {
@@ -834,7 +872,7 @@ window.firebaseServices = {
     // Get course categories with counts
     getCourseCategoriesWithCounts: async () => {
         try {
-            const courses = await firebaseServices.getCourses();
+            const courses = await window.firebaseServices.getCourses();
             const categoryCount = {};
             
             courses.forEach(course => {
@@ -855,7 +893,6 @@ window.firebaseServices = {
     // Function to update user streak and consistency data
     updateUserStreakData: async (userId) => {
         try {
-            const { ref, get, update } = await import("firebase/database");
             const analyticsRef = ref(rtdb, `userAnalytics/${userId}`);
             const snapshot = await get(analyticsRef);
             
@@ -940,7 +977,7 @@ window.firebaseServices = {
     // Function to get detailed learning patterns
     getLearningPatterns: async (userId) => {
         try {
-            const analytics = await firebaseServices.getUserAnalytics(userId);
+            const analytics = await window.firebaseServices.getUserAnalytics(userId);
             if (!analytics || !analytics.dailyActivity) return null;
             
             const dailyActivity = analytics.dailyActivity;
@@ -969,13 +1006,13 @@ window.firebaseServices = {
             const avgStudyTime = activeDays > 0 ? totalTimeStudied / activeDays : 0;
             
             // Find peak learning hours (simplified - would need more detailed data)
-            const peakHours = firebaseServices.findPeakLearningHours(dailyActivity);
+            const peakHours = window.firebaseServices.findPeakLearningHours(dailyActivity);
             
             // Calculate learning velocity (improvement over time)
-            const learningVelocity = firebaseServices.calculateLearningVelocity(dailyActivity);
+            const learningVelocity = window.firebaseServices.calculateLearningVelocity(dailyActivity);
             
             // Calculate weekly averages
-            const weeklyAverages = firebaseServices.calculateWeeklyAverages(dailyActivity);
+            const weeklyAverages = window.firebaseServices.calculateWeeklyAverages(dailyActivity);
             
             // Calculate category distribution
             const categoryDistribution = analytics.favoriteCategories || {};
@@ -1125,7 +1162,7 @@ window.firebaseServices = {
     // Function to get user engagement score
     getUserEngagementScore: async (userId) => {
         try {
-            const analytics = await firebaseServices.getUserAnalytics(userId);
+            const analytics = await window.firebaseServices.getUserAnalytics(userId);
             if (!analytics) return 0;
             
             // Calculate engagement score based on multiple factors
