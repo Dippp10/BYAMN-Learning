@@ -3781,3 +3781,48 @@ body.theme-transition * {
 #bookmarks-filter.active svg {
     fill: currentColor;
 }
+
+/* Offline Sync Styles */
+.sync-status-online {
+    background-color: #10B981;
+    animation: pulse 2s infinite;
+}
+
+.sync-status-offline {
+    background-color: #F59E0B;
+}
+
+.sync-status-syncing {
+    background-color: #3B82F6;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.offline-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #FEF3C7;
+    border: 1px solid #F59E0B;
+    border-radius: 8px;
+    padding: 12px 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.online-notification {
+    background: #D1FAE5;
+    border: 1px solid #10B981;
+}

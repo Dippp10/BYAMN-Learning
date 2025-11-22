@@ -264,6 +264,50 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Function to load and display offline progress
+    async function loadOfflineProgress() {
+        const user = firebaseServices.auth.currentUser;
+        if (!user || !window.offlineSyncManager) return;
+
+        try {
+            // Get pending sync items count
+            const pendingItems = await window.offlineSyncManager.getPendingSyncItems();
+            
+            if (pendingItems.length > 0) {
+                // Add offline progress section to dashboard
+                addOfflineProgressSection(pendingItems.length);
+            }
+        } catch (error) {
+            console.error('Error loading offline progress:', error);
+        }
+    }
+
+    // Add offline progress section to dashboard
+    function addOfflineProgressSection(pendingCount) {
+        const dashboardContainer = document.getElementById('courses-container');
+        if (!dashboardContainer) return;
+
+        const offlineProgressHTML = `
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+                <div class="flex items-center">
+                    <svg class="h-6 w-6 text-yellow-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                        <h3 class="text-lg font-semibold text-yellow-800">Offline Progress Pending</h3>
+                        <p class="text-yellow-700">
+                            You have ${pendingCount} progress update(s) waiting to sync. 
+                            They will be automatically uploaded when you're back online.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Insert at the beginning of the courses container
+        dashboardContainer.insertAdjacentHTML('afterbegin', offlineProgressHTML);
+    }
+
     // Check auth state
     firebaseServices.onAuthStateChanged((user) => {
         if (user) {
@@ -278,6 +322,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Load user's enrollments and bookmarks
             loadUserEnrollments(user.uid);
             loadBookmarkedCourses(user.uid);
+            
+            // Load offline progress
+            loadOfflineProgress();
         } else {
             // User is signed out
             console.log('User is signed out');
