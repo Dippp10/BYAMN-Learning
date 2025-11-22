@@ -3718,3 +3718,66 @@ body.theme-transition * {
     line-height: 1.5;
   }
 }
+
+/* Bookmark Button Styles */
+.bookmark-btn {
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.bookmark-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.1);
+}
+
+.bookmark-btn.bookmarked .bookmark-icon {
+    fill: currentColor;
+    color: #f59e0b; /* amber-500 */
+}
+
+.bookmark-btn.not-bookmarked .bookmark-icon {
+    stroke: currentColor;
+    color: #6b7280; /* gray-500 */
+}
+
+.bookmark-btn-text {
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.bookmark-btn-text:hover {
+    background: #f9fafb;
+}
+
+.bookmark-btn-text.bookmarked {
+    border-color: #f59e0b;
+    background: #fffbeb;
+    color: #92400e;
+}
+
+.bookmark-btn-text.bookmarked:hover {
+    background: #fef3c7;
+}
+
+/* Bookmarks Filter Button */
+#bookmarks-filter.active {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+#bookmarks-filter.active svg {
+    fill: currentColor;
+}

@@ -9,6 +9,8 @@ let categoryMap = {}; // Map to store category ID to name mappings
 let difficultyFilter = 'all'; // all, beginner, intermediate, advanced
 let durationFilter = 'all'; // all, short, medium, long
 let instructorFilter = 'all'; // all, specific instructors
+let bookmarkedCourses = new Set(); // Store bookmarked course IDs
+let searchDebounceTimer;
 
 // Intersection Observer for lazy loading images
 const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -21,6 +23,119 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
         }
     });
 });
+
+// Load bookmarked courses from localStorage
+function loadBookmarkedCourses() {
+    try {
+        const saved = localStorage.getItem('bookmarkedCourses');
+        if (saved) {
+            bookmarkedCourses = new Set(JSON.parse(saved));
+        }
+    } catch (error) {
+        console.error('Error loading bookmarked courses:', error);
+        bookmarkedCourses = new Set();
+    }
+}
+
+// Save bookmarked courses to localStorage
+function saveBookmarkedCourses() {
+    try {
+        localStorage.setItem('bookmarkedCourses', JSON.stringify([...bookmarkedCourses]));
+    } catch (error) {
+        console.error('Error saving bookmarked courses:', error);
+    }
+}
+
+// Toggle bookmark for a course
+function toggleBookmark(courseId) {
+    const user = firebaseServices.auth.currentUser;
+    const userId = user ? user.uid : 'anonymous';
+    
+    if (bookmarkedCourses.has(courseId)) {
+        // Remove bookmark
+        bookmarkedCourses.delete(courseId);
+        if (user) {
+            // Remove from Firebase if user is logged in
+            firebaseServices.removeBookmark(userId, courseId).catch(error => {
+                console.error('Error removing bookmark from Firebase:', error);
+            });
+        }
+    } else {
+        // Add bookmark
+        bookmarkedCourses.add(courseId);
+        if (user) {
+            // Save to Firebase if user is logged in
+            firebaseServices.saveBookmark(userId, courseId, new Date().toISOString()).catch(error => {
+                console.error('Error saving bookmark to Firebase:', error);
+            });
+        }
+    }
+    
+    saveBookmarkedCourses();
+    updateBookmarkUI(courseId);
+    
+    // Show notification
+    const action = bookmarkedCourses.has(courseId) ? 'saved to' : 'removed from';
+    utils.showNotification(`Course ${action} bookmarks`, 'success');
+}
+
+// Update bookmark button UI
+function updateBookmarkUI(courseId) {
+    const bookmarkBtn = document.querySelector(`.bookmark-btn[data-course-id="${courseId}"]`);
+    if (bookmarkBtn) {
+        const isBookmarked = bookmarkedCourses.has(courseId);
+        const icon = bookmarkBtn.querySelector('.bookmark-icon');
+        
+        if (isBookmarked) {
+            bookmarkBtn.classList.add('bookmarked');
+            bookmarkBtn.classList.remove('not-bookmarked');
+            if (icon) {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />';
+            }
+        } else {
+            bookmarkBtn.classList.add('not-bookmarked');
+            bookmarkBtn.classList.remove('bookmarked');
+            if (icon) {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />';
+            }
+        }
+    }
+    
+    // Also update text buttons
+    const bookmarkTextBtn = document.querySelector(`.bookmark-btn-text[data-course-id="${courseId}"]`);
+    if (bookmarkTextBtn) {
+        const isBookmarked = bookmarkedCourses.has(courseId);
+        const icon = bookmarkTextBtn.querySelector('.bookmark-icon');
+        const text = bookmarkTextBtn.querySelector('.bookmark-text');
+        
+        if (isBookmarked) {
+            bookmarkTextBtn.classList.add('bookmarked');
+            bookmarkTextBtn.classList.remove('not-bookmarked');
+            if (text) {
+                text.textContent = 'Saved';
+            }
+        } else {
+            bookmarkTextBtn.classList.add('not-bookmarked');
+            bookmarkTextBtn.classList.remove('bookmarked');
+            if (text) {
+                text.textContent = 'Save';
+            }
+        }
+    }
+}
+
+// Load user bookmarks from Firebase (for logged-in users)
+async function loadUserBookmarks(userId) {
+    try {
+        const bookmarks = await firebaseServices.getUserBookmarks(userId);
+        bookmarks.forEach(bookmark => {
+            bookmarkedCourses.add(bookmark.courseId);
+        });
+        saveBookmarkedCourses();
+    } catch (error) {
+        console.error('Error loading user bookmarks:', error);
+    }
+}
 
 // Add helper function for date normalization (similar to the one in firebase.js)
 function getNormalizedDate(dateValue) {
@@ -84,6 +199,20 @@ function getDurationCategory(duration) {
     }
     
     return 'short';
+}
+
+// Format duration from seconds to readable format
+function formatDuration(seconds) {
+    if (!seconds) return '0m 0s';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    } else {
+        return `${minutes}m`;
+    }
 }
 
 // Utility function to filter courses
@@ -180,6 +309,28 @@ function sortCourses(courses, sortOption) {
     return sortedCourses;
 }
 
+// Enroll in course function
+function enrollInCourse(courseId) {
+    const user = firebaseServices.auth.currentUser;
+    if (!user) {
+        utils.showNotification('Please sign in to enroll in courses', 'error');
+        return;
+    }
+
+    firebaseServices.enrollUserInCourse(user.uid, courseId)
+        .then(() => {
+            utils.showNotification('Successfully enrolled in course!', 'success');
+            // Redirect to course player or update UI
+            setTimeout(() => {
+                window.location.href = `player.html?courseId=${courseId}`;
+            }, 1000);
+        })
+        .catch(error => {
+            console.error('Error enrolling in course:', error);
+            utils.showNotification('Error enrolling in course: ' + error.message, 'error');
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Elements
     const coursesContainer = document.getElementById('courses-container');
@@ -191,6 +342,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const instructorFilterSelect = document.getElementById('instructor-filter');
     const clearFiltersBtn = document.getElementById('clear-filters');
     const resultsCount = document.getElementById('results-count');
+    const bookmarksFilterBtn = document.getElementById('bookmarks-filter');
+    const clearSearchBtn = document.getElementById('clear-search');
+    const searchSuggestions = document.getElementById('search-suggestions');
+    const recommendationsSection = document.getElementById('recommendations-section');
+    const recommendationsContainer = document.getElementById('recommendations-container');
+
+    // Load bookmarked courses
+    loadBookmarkedCourses();
 
     // Load courses and categories when page loads
     loadCategoriesAndCourses();
@@ -222,7 +381,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Handle search submission
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                addToSearchHistory(currentSearchTerm);
                 applyFilters();
                 if (searchSuggestions) {
                     searchSuggestions.style.display = 'none';
@@ -279,6 +437,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Add bookmarks filter event listener
+    if (bookmarksFilterBtn) {
+        bookmarksFilterBtn.addEventListener('click', function() {
+            const isActive = bookmarksFilterBtn.classList.contains('active');
+            
+            if (!isActive) {
+                // Activate bookmarks filter
+                bookmarksFilterBtn.classList.add('active');
+                bookmarksFilterBtn.innerHTML = `
+                    <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" clip-rule="evenodd" />
+                    </svg>
+                    My Bookmarks (${bookmarkedCourses.size})
+                `;
+                applyBookmarksFilter();
+            } else {
+                // Deactivate bookmarks filter
+                bookmarksFilterBtn.classList.remove('active');
+                bookmarksFilterBtn.innerHTML = `
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    My Bookmarks
+                `;
+                applyFilters();
+            }
+        });
+    }
+
     // Add clear filters event listener
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', function() {
@@ -289,6 +476,17 @@ document.addEventListener('DOMContentLoaded', function() {
             durationFilter = 'all';
             instructorFilter = 'all';
             currentSort = 'newest';
+            
+            // Reset bookmarks filter
+            if (bookmarksFilterBtn) {
+                bookmarksFilterBtn.classList.remove('active');
+                bookmarksFilterBtn.innerHTML = `
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    My Bookmarks
+                `;
+            }
             
             // Reset UI elements
             if (searchInput) searchInput.value = '';
@@ -310,8 +508,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Apply bookmarks filter
+    function applyBookmarksFilter() {
+        const filteredCourses = allCourses.filter(course => 
+            bookmarkedCourses.has(course.id)
+        );
+        
+        const sortedCourses = sortCourses(filteredCourses, currentSort);
+        renderCourses(sortedCourses);
+        
+        if (resultsCount) {
+            resultsCount.textContent = `${filteredCourses.length} bookmarked course${filteredCourses.length !== 1 ? 's' : ''} found`;
+        }
+    }
+
     // Apply all filters
     function applyFilters() {
+        // Check if bookmarks filter is active
+        const isBookmarksFilterActive = bookmarksFilterBtn && bookmarksFilterBtn.classList.contains('active');
+        
+        if (isBookmarksFilterActive) {
+            applyBookmarksFilter();
+            return;
+        }
+        
         // Filter courses
         let filteredCourses = filterCourses(
             allCourses, 
@@ -334,17 +554,59 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Show search suggestions
+    function showSearchSuggestions(searchTerm) {
+        if (!searchSuggestions) return;
+        
+        const suggestions = allCourses
+            .filter(course => {
+                const titleMatch = course.title && course.title.toLowerCase().includes(searchTerm);
+                const categoryMatch = categoryMap[course.category] && categoryMap[course.category].toLowerCase().includes(searchTerm);
+                return titleMatch || categoryMatch;
+            })
+            .slice(0, 5);
+        
+        if (suggestions.length > 0) {
+            let suggestionsHTML = '';
+            suggestions.forEach(course => {
+                const categoryName = categoryMap[course.category] || course.category;
+                suggestionsHTML += `
+                    <div class="search-suggestion-item" data-course-id="${course.id}">
+                        <div class="font-medium">${course.title}</div>
+                        <div class="text-sm text-gray-500">${categoryName}</div>
+                    </div>
+                `;
+            });
+            
+            searchSuggestions.innerHTML = suggestionsHTML;
+            searchSuggestions.style.display = 'block';
+            
+            // Add event listeners to suggestion items
+            document.querySelectorAll('.search-suggestion-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const courseId = this.getAttribute('data-course-id');
+                    window.location.href = `player.html?courseId=${courseId}`;
+                });
+            });
+        } else {
+            searchSuggestions.innerHTML = '';
+            searchSuggestions.style.display = 'none';
+        }
+    }
+
     // Load categories and courses from Firebase
     async function loadCategoriesAndCourses() {
         try {
             // Show loading state
-            coursesContainer.innerHTML = `
-                <div class="col-span-full text-center py-20">
-                    <div class="loading-spinner mx-auto"></div>
-                    <p class="mt-8 text-gray-700 font-semibold text-lg">Loading courses...</p>
-                    <p class="mt-3 text-gray-500">Please wait while we fetch our course catalog</p>
-                </div>
-            `;
+            if (coursesContainer) {
+                coursesContainer.innerHTML = `
+                    <div class="col-span-full text-center py-20">
+                        <div class="loading-spinner mx-auto"></div>
+                        <p class="mt-8 text-gray-700 font-semibold text-lg">Loading courses...</p>
+                        <p class="mt-3 text-gray-500">Please wait while we fetch our course catalog</p>
+                    </div>
+                `;
+            }
 
             // Fetch categories and courses from Firebase Realtime Database
             const [categoriesSnapshot, coursesSnapshot] = await Promise.all([
@@ -370,8 +632,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Store all courses for filtering
             allCourses = courses;
 
-            // Check if user is logged in to show personalized recommendations
+            // Check if user is logged in to load their bookmarks
             const user = firebaseServices.auth.currentUser;
+            if (user) {
+                await loadUserBookmarks(user.uid);
+            }
+
+            // Check if user is logged in to show personalized recommendations
             if (user) {
                 // Load personalized recommendations
                 loadRecommendations(user.uid, courses, categories);
@@ -400,6 +667,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 allCoursesButton.classList.add('active');
             }
             
+            // Update bookmarks filter button count
+            if (bookmarksFilterBtn) {
+                const bookmarkCount = bookmarkedCourses.size;
+                bookmarksFilterBtn.innerHTML = `
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    My Bookmarks${bookmarkCount > 0 ? ` (${bookmarkCount})` : ''}
+                `;
+            }
+            
             // Update results count
             if (resultsCount) {
                 resultsCount.textContent = `${courses.length} course${courses.length !== 1 ? 's' : ''} found`;
@@ -409,20 +687,22 @@ document.addEventListener('DOMContentLoaded', function() {
             utils.showNotification('Error loading data: ' + error.message, 'error');
 
             // Show error state
-            coursesContainer.innerHTML = `
-                <div class="col-span-full text-center py-20">
-                    <svg class="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <h3 class="mt-6 text-2xl font-bold text-gray-900">Error Loading Data</h3>
-                    <p class="mt-3 text-gray-600 max-w-md mx-auto">There was an error loading courses. Please try again later.</p>
-                    <div class="mt-8">
-                        <button onclick="location.reload()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition duration-300 shadow-md hover:shadow-lg">
-                            Retry
-                        </button>
+            if (coursesContainer) {
+                coursesContainer.innerHTML = `
+                    <div class="col-span-full text-center py-20">
+                        <svg class="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <h3 class="mt-6 text-2xl font-bold text-gray-900">Error Loading Data</h3>
+                        <p class="mt-3 text-gray-600 max-w-md mx-auto">There was an error loading courses. Please try again later.</p>
+                        <div class="mt-8">
+                            <button onclick="location.reload()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition duration-300 shadow-md hover:shadow-lg">
+                                Retry
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         }
     }
 
@@ -632,6 +912,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             loading="lazy"
                             onerror="this.src='https://placehold.co/400x200/6366f1/white?text=Course';"
                         >
+                        <button class="bookmark-btn ${bookmarkedCourses.has(course.id) ? 'bookmarked' : 'not-bookmarked'}" 
+                                data-course-id="${course.id}"
+                                title="${bookmarkedCourses.has(course.id) ? 'Remove from bookmarks' : 'Save for later'}">
+                            <svg class="h-5 w-5 bookmark-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                        </button>
                     </div>
                     <div class="course-card-content">
                         <div class="flex justify-between items-start mb-4">
@@ -663,11 +950,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         recommendationsContainer.innerHTML = recommendationsHTML;
 
+        // Add event listeners to bookmark buttons in recommendations
+        document.querySelectorAll('.recommendation-card .bookmark-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const courseId = this.getAttribute('data-course-id');
+                toggleBookmark(courseId);
+            });
+        });
+
         // Add event listeners to recommendation cards for tracking
         document.querySelectorAll('.recommendation-card').forEach(card => {
             card.addEventListener('click', function(e) {
                 // Only track if clicking on the card itself, not on buttons/links
-                if (e.target.classList.contains('enroll-btn')) return;
+                if (e.target.classList.contains('enroll-btn') || e.target.classList.contains('bookmark-btn')) return;
                 
                 const courseId = this.getAttribute('data-course-id');
                 if (userId && courseId) {
@@ -813,6 +1109,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     instructorFilter = 'all';
                     currentSort = 'newest';
                     
+                    // Reset bookmarks filter
+                    if (bookmarksFilterBtn) {
+                        bookmarksFilterBtn.classList.remove('active');
+                        bookmarksFilterBtn.innerHTML = `
+                            <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                            My Bookmarks${bookmarkedCourses.size > 0 ? ` (${bookmarkedCourses.size})` : ''}
+                        `;
+                    }
+                    
                     // Reset UI elements
                     if (searchInput) searchInput.value = '';
                     if (sortSelect) sortSelect.value = 'newest';
@@ -855,8 +1162,19 @@ document.addEventListener('DOMContentLoaded', function() {
             else if (durationCategory === 'medium') durationText += ' (Medium)';
             else if (durationCategory === 'long') durationText += ' (Long)';
             
+            const isBookmarked = bookmarkedCourses.has(course.id);
+            
             coursesHTML += `
-                <div class="bg-white rounded-xl shadow-md overflow-hidden hover-lift transition-all duration-300 course-card">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden hover-lift transition-all duration-300 course-card relative">
+                    <!-- Bookmark Button -->
+                    <button class="bookmark-btn ${isBookmarked ? 'bookmarked' : 'not-bookmarked'} absolute top-4 right-4 z-10" 
+                            data-course-id="${course.id}"
+                            title="${isBookmarked ? 'Remove from bookmarks' : 'Save for later'}">
+                        <svg class="h-6 w-6 bookmark-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                    </button>
+                    
                     <div class="h-48 overflow-hidden">
                         <img class="w-full h-full object-cover lazy-load" data-src="${course.thumbnail || 'https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80'}" alt="${course.title}" loading="lazy">
                     </div>
@@ -890,10 +1208,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             ` : ''}
                         </div>
                         
-                        <div class="mt-6">
-                            <a href="player.html?courseId=${course.id}" class="w-full px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition duration-300 text-center inline-block">
+                        <div class="mt-6 flex space-x-3">
+                            <a href="player.html?courseId=${course.id}" class="flex-1 px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition duration-300 text-center">
                                 View Course
                             </a>
+                            <button class="bookmark-btn-text ${isBookmarked ? 'bookmarked' : 'not-bookmarked'} px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition duration-300 flex items-center justify-center"
+                                    data-course-id="${course.id}">
+                                <svg class="h-5 w-5 mr-2 bookmark-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                </svg>
+                                <span class="bookmark-text">${isBookmarked ? 'Saved' : 'Save'}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -903,6 +1228,15 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Generated courses HTML:', coursesHTML);
         coursesContainer.innerHTML = coursesHTML;
         console.log('Courses container updated with', courses.length, 'courses');
+        
+        // Add event listeners to bookmark buttons
+        document.querySelectorAll('.bookmark-btn, .bookmark-btn-text').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const courseId = this.getAttribute('data-course-id');
+                toggleBookmark(courseId);
+            });
+        });
         
         // Observe images for lazy loading
         document.querySelectorAll('.lazy-load').forEach(img => {
