@@ -390,6 +390,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const certId = certificateUid.textContent.replace('UID: ', '');
             const shareUrl = `${window.location.origin}/verification.html?certId=${certId}`;
             
+            // Track challenge progress when certificate is shared
+            if (typeof learningChallenges !== 'undefined') {
+                learningChallenges.recordActivity('certificate_share');
+            }
+            
             // Try to use Web Share API if available
             if (navigator.share) {
                 navigator.share({

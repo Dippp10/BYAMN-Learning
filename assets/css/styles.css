@@ -3899,3 +3899,62 @@ body.theme-transition * {
     animation-duration: 1s;
     transform: scale(1.1);
 }
+
+/* Learning Challenges Styles */
+.challenge-completion-notification {
+    animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.confetti-particle {
+    pointer-events: none;
+}
+
+/* Challenge card hover effects */
+.challenge-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e5e7eb;
+}
+
+.challenge-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Progress bar animations */
+.progress-bar-fill {
+    transition: width 0.8s ease-in-out;
+}
+
+/* Challenge status badges */
+.challenge-status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 600;
+}
+
+.challenge-completed {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.challenge-in-progress {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.challenge-expired {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}

@@ -345,6 +345,23 @@
             </div>
         </div>
 
+        <!-- Learning Challenges Section -->
+        <div class="bg-white rounded-xl shadow-md mb-8">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Learning Challenges</h2>
+                <p class="text-gray-600 mt-1">Complete challenges to earn badges and track your progress</p>
+            </div>
+            <div class="p-6">
+                <div id="challenges-section">
+                    <!-- Challenges will be loaded here dynamically -->
+                    <div class="text-center py-8">
+                        <div class="loading-spinner mx-auto"></div>
+                        <p class="mt-4 text-gray-600">Loading challenges...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Achievements Section -->
         <div class="bg-white rounded-xl shadow-md mb-8">
             <div class="px-6 py-5 border-b border-gray-200">
@@ -482,6 +499,7 @@
     <script src="assets/js/dashboard.js"></script>
     <script src="assets/js/offline-sync.js"></script>
     <script src="assets/js/streak.js"></script>
+    <script src="assets/js/challenges.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Check if user is authenticated
