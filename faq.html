@@ -34,6 +34,8 @@
           <img src="./logo.png" alt="BYAMN Logo" class="h-10 w-10 object-contain">
           <h1 class="ml-3 font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent text-2xl">BYAMN</h1>
         </div>
+
+        <!-- Desktop nav -->
         <nav class="hidden md:flex space-x-4">
           <a href="index.html" class="hover:text-indigo-600 font-medium">Home</a>
           <a href="courses.html" class="hover:text-indigo-600 font-medium">Courses</a>
@@ -41,9 +43,40 @@
           <a href="faq.html" class="text-indigo-600 font-semibold">FAQ</a>
           <a href="contact.html" class="hover:text-indigo-600 font-medium">Contact</a>
         </nav>
+
+        <!-- Desktop actions -->
         <div class="hidden md:flex space-x-3">
           <a href="auth/login.html" class="px-4 py-2 border border-indigo-500 text-indigo-600 rounded-lg hover:bg-indigo-50">Login</a>
           <a href="auth/register.html" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Get Started</a>
+        </div>
+
+        <!-- Mobile hamburger button -->
+        <div class="md:hidden flex items-center">
+          <button id="mobile-menu-button" aria-controls="mobile-menu" aria-expanded="false" class="p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <span class="sr-only">Toggle navigation</span>
+            <svg id="icon-open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <svg id="icon-close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile menu (hidden by default) -->
+    <div id="mobile-menu" class="hidden md:hidden bg-white/95 border-t border-neutral-200">
+      <div class="px-4 pt-4 pb-6 space-y-2">
+        <a href="index.html" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-indigo-50">Home</a>
+        <a href="courses.html" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-indigo-50">Courses</a>
+        <a href="about.html" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-indigo-50">About</a>
+        <a href="faq.html" class="block px-3 py-2 rounded-md text-base font-medium text-indigo-600 bg-indigo-50">FAQ</a>
+        <a href="contact.html" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-indigo-50">Contact</a>
+
+        <div class="pt-2 border-t border-neutral-100 flex gap-2">
+          <a href="auth/login.html" class="flex-1 text-center px-3 py-2 border border-indigo-500 text-indigo-600 rounded-md">Login</a>
+          <a href="auth/register.html" class="flex-1 text-center px-3 py-2 bg-indigo-600 text-white rounded-md">Get Started</a>
         </div>
       </div>
     </div>
@@ -318,21 +351,18 @@
               </svg>
             </a>
             <a
-              href="#"
-              class="text-neutral-300 hover:text-white transition-colors duration-200 transform hover:scale-110"
-            >
-              <span class="sr-only">Twitter</span>
-              <svg
-                class="h-6 w-6"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"
-                ></path>
-              </svg>
-            </a>
+  href="#"
+  class="text-neutral-300 hover:text-white transition-colors duration-200 transform hover:scale-110"
+>
+  <span class="sr-only">X (Twitter)</span> <svg
+    class="h-6 w-6"
+    fill="currentColor"
+    viewBox="0 0 512 512"
+    aria-hidden="true"
+  >
+    <path d="M389.2 48h70.6L305.6 224.2 487 464H345L233.7 318.6 106.5 464H35.8L200.7 275.5 26.8 48H172.4L272.9 180.9 389.2 48zM364.4 421.8h39.1L151.1 88h-42L364.4 421.8z"/>
+  </svg>
+</a>
             <a
               href="#"
               class="text-neutral-300 hover:text-white transition-colors duration-200 transform hover:scale-110"
@@ -372,6 +402,37 @@
         }
       });
     });
+  </script>
+
+  <!-- Mobile menu toggle -->
+  <script>
+    (function () {
+      const btn = document.getElementById('mobile-menu-button');
+      const menu = document.getElementById('mobile-menu');
+      const iconOpen = document.getElementById('icon-open');
+      const iconClose = document.getElementById('icon-close');
+      if (!btn || !menu) return;
+
+      btn.addEventListener('click', () => {
+        const wasHidden = menu.classList.contains('hidden');
+        menu.classList.toggle('hidden');
+        iconOpen.classList.toggle('hidden');
+        iconClose.classList.toggle('hidden');
+        btn.setAttribute('aria-expanded', String(!wasHidden));
+      });
+
+      // Ensure menu is hidden when resizing to desktop widths
+      window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768) {
+          if (!menu.classList.contains('hidden')) {
+            menu.classList.add('hidden');
+            iconOpen.classList.remove('hidden');
+            iconClose.classList.add('hidden');
+            btn.setAttribute('aria-expanded', 'false');
+          }
+        }
+      });
+    })();
   </script>
 </body>
 </html>
