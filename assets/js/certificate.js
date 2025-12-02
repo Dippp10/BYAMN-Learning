@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Handle download certificate
+    // Handle download certificate - FIXED FILE NAMING BUG
     if (downloadBtn) {
         downloadBtn.addEventListener('click', function() {
             // Generate certificate ID if not already present
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Download certificate as PDF
+    // Download certificate as PDF - FIXED FILE NAMING
     function downloadCertificate() {
         // Check if required libraries are available
         if (typeof jspdf === 'undefined' || typeof jspdf.jsPDF === 'undefined') {
@@ -435,6 +435,24 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Get certificate details for filename
+        const courseTitle = courseTitleCertificate ? courseTitleCertificate.textContent.trim() : 'Certificate';
+        const studentName = studentNameCertificate ? studentNameCertificate.textContent.trim() : 'Student';
+        
+        // Sanitize filename (remove special characters, replace spaces with hyphens)
+        const sanitizeFilename = (str) => {
+            return str
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/gi, '') // Remove special characters
+                .replace(/\s+/g, '-') // Replace spaces with hyphens
+                .substring(0, 50); // Limit length
+        };
+        
+        // Create a meaningful filename
+        const filename = `BYAMN-Certificate-${sanitizeFilename(courseTitle)}-${sanitizeFilename(studentName)}-${Date.now().toString().substr(-6)}`;
+        
+        console.log('Generating certificate with filename:', filename);
+        
         // Show loading state on button
         const originalText = downloadBtn.innerHTML;
         downloadBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...';
@@ -444,11 +462,12 @@ document.addEventListener('DOMContentLoaded', function() {
         html2canvas(certificateElement, {
             scale: 2, // Higher scale for better quality
             useCORS: true, // Enable CORS for images
-            logging: false // Disable logging
+            logging: false, // Disable logging
+            backgroundColor: '#ffffff' // Ensure white background
         })
         .then(canvas => {
             // Convert canvas to image data
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('image/png', 1.0);
             
             // Create a new jsPDF instance
             const { jsPDF } = jspdf;
@@ -462,32 +481,45 @@ document.addEventListener('DOMContentLoaded', function() {
             const imgWidth = 280; // A4 width in mm (landscape)
             const pageHeight = 210; // A4 height in mm (landscape)
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-            let position = 0;
             
-            // Add image to PDF
-            doc.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+            // Add image to PDF - center it
+            const xPosition = 5; // Left margin
+            const yPosition = (pageHeight - imgHeight) / 2; // Center vertically
             
-            // Add additional pages if needed
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight;
-                doc.addPage();
-                doc.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
+            doc.addImage(imgData, 'PNG', xPosition, yPosition, imgWidth, imgHeight);
             
-            // Get course title for filename
-            const courseTitle = courseTitleCertificate ? courseTitleCertificate.textContent : 'Course';
+            // Add certificate metadata to PDF (optional - can be used for accessibility)
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
             
-            // Save the PDF
-            doc.save(`certificate-${courseTitle.replace(/\s+/g, '-')}.pdf`);
+            // Get certificate details for PDF metadata
+            const certId = certificateUid ? certificateUid.textContent.replace('UID: ', '') : '';
+            const issueDate = issuedDate ? issuedDate.textContent.replace('Issued On: ', '') : '';
+            const instructor = instructorName ? instructorName.textContent : '';
+            
+            // Add metadata at the bottom of the PDF
+            const metadataY = pageHeight - 10;
+            doc.text(`Certificate: ${courseTitle}`, 10, metadataY - 15);
+            doc.text(`Student: ${studentName}`, 10, metadataY - 10);
+            doc.text(`Certificate ID: ${certId}`, 10, metadataY - 5);
+            doc.text(`Issued: ${issueDate} | Instructor: ${instructor}`, 10, metadataY);
+            doc.text(`Verified at: ${window.location.origin}/verification.html`, 10, metadataY + 5);
+            
+            // Save the PDF with meaningful filename
+            doc.save(`${filename}.pdf`);
             
             // Restore button
             downloadBtn.innerHTML = originalText;
             downloadBtn.disabled = false;
             
-            utils.showNotification('Certificate downloaded successfully!', 'success');
+            // Show success notification with filename
+            utils.showNotification(`Certificate "${filename}.pdf" downloaded successfully!`, 'success');
+            
+            // Log the download for analytics (if available)
+            if (typeof firebaseServices !== 'undefined' && firebaseServices.auth && firebaseServices.auth.currentUser) {
+                const userId = firebaseServices.auth.currentUser.uid;
+                logCertificateDownload(userId, courseId, filename);
+            }
         })
         .catch(error => {
             console.error('Error generating certificate PDF:', error);
@@ -496,7 +528,69 @@ document.addEventListener('DOMContentLoaded', function() {
             // Restore button
             downloadBtn.innerHTML = originalText;
             downloadBtn.disabled = false;
+            
+            // Fallback: Try to download as image if PDF fails
+            tryFallbackImageDownload();
         });
+    }
+    
+    // Fallback function to download certificate as image
+    function tryFallbackImageDownload() {
+        const certificateElement = document.getElementById('certificate-to-download');
+        if (!certificateElement) return;
+        
+        const courseTitle = courseTitleCertificate ? courseTitleCertificate.textContent.trim() : 'Certificate';
+        const studentName = studentNameCertificate ? studentNameCertificate.textContent.trim() : 'Student';
+        
+        // Create a temporary canvas
+        html2canvas(certificateElement, {
+            scale: 1,
+            useCORS: true,
+            backgroundColor: '#ffffff'
+        })
+        .then(canvas => {
+            // Convert to data URL
+            const imageData = canvas.toDataURL('image/png');
+            
+            // Create download link
+            const link = document.createElement('a');
+            link.download = `BYAMN-Certificate-${courseTitle.replace(/\s+/g, '-')}-${studentName.replace(/\s+/g, '-')}.png`;
+            link.href = imageData;
+            link.click();
+            
+            utils.showNotification('Certificate downloaded as image!', 'success');
+        })
+        .catch(err => {
+            console.error('Fallback image download failed:', err);
+            utils.showNotification('Failed to download certificate. Please try again.', 'error');
+        });
+    }
+    
+    // Log certificate download for analytics
+    function logCertificateDownload(userId, courseId, filename) {
+        try {
+            // Create download log entry
+            const downloadLog = {
+                userId: userId,
+                courseId: courseId,
+                filename: filename,
+                downloadedAt: new Date().toISOString(),
+                userAgent: navigator.userAgent
+            };
+            
+            // Save to Firebase Realtime Database
+            const downloadsRef = firebaseServices.ref('certificateDownloads');
+            const newDownloadRef = firebaseServices.push(downloadsRef);
+            firebaseServices.set(newDownloadRef, downloadLog)
+                .then(() => {
+                    console.log('Certificate download logged successfully:', downloadLog);
+                })
+                .catch(error => {
+                    console.error('Error logging certificate download:', error);
+                });
+        } catch (error) {
+            console.error('Error in certificate download logging:', error);
+        }
     }
     
     // Handle logout
