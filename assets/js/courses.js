@@ -1942,7 +1942,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         coursesContainer.innerHTML = coursesHTML;
         
-        // Add event listeners to bookmark buttons
+        // Add event listeners
         document.querySelectorAll('.bookmark-btn, .bookmark-btn-text').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.stopPropagation();
