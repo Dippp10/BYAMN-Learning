@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BYAMN Learning | Contributor Leaderboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* =========================================
+           BYAMN Learning | Contributor Leaderboard
+           ========================================= */
+        
+        :root {
+            /* Light theme variables */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-light: #999999;
+            --border-color: #e0e0e0;
+            --accent-primary: #4361ee;
+            --accent-secondary: #3f37c9;
+            --success: #4cc9f0;
+            --warning: #f72585;
+            --danger: #e63946;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: var(--bg-primary);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+        
+        .stats-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            min-width: 200px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 15px;
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .search-box i {
+            color: var(--text-light);
+            margin-right: 10px;
+        }
+        
+        .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 100%;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .export-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+        
+        .export-btn:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-2px);
+        }
+        
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+        }
+        
+        .table-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            text-align: left;
+            padding: 15px 20px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        .rank-cell {
+            font-weight: 700;
+            color: var(--text-light);
+            width: 60px;
+        }
+        
+        .contributor-cell {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+        }
+        
+        .contributor-name {
+            font-weight: 600;
+        }
+        
+        .contributor-sub {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+        
+        .level-cell {
+            font-weight: 700;
+        }
+        
+        .activity-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .bar-bg {
+            width: 100px;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 4px;
+        }
+        
+        .xp-cell {
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+        
+        .status-regular {
+            background: rgba(67, 97, 238, 0.2);
+            color: var(--accent-primary);
+        }
+        
+        .status-occasional {
+            background: rgba(153, 153, 153, 0.2);
+            color: var(--text-light);
+        }
+        
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+        
+        .chart-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            height: 200px;
+        }
+        
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--accent-primary), #4895ef);
+            border-radius: 4px 4px 0 0;
+            min-height: 5%;
+            position: relative;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: var(--accent-primary);
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .stat-card {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            table {
+                min-width: 600px;
+            }
+            
+            th, td {
+                padding: 12px 15px;
+            }
+            
+            .chart-bars {
+                gap: 5px;
+                height: 150px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                gap: 10px;
+            }
+            
+            .export-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BYAMN Learning Leaderboard</h1>
+            <p class="subtitle">Track contributor achievements and learning progress</p>
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-label">Active Contributors</div>
+                    <div class="stat-value" id="total-contributors">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Contributions</div>
+                    <div class="stat-value" id="total-contributions">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Repository Status</div>
+                    <div class="stat-value"><i class="fas fa-check-circle" style="color: #2ecc71;"></i></div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="controls">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input" placeholder="Search contributors...">
+            </div>
+            <button class="export-btn" id="export-btn">
+                <i class="fas fa-download"></i> Export Data
+            </button>
+        </div>
+        
+        <div class="table-container">
+            <div class="table-header">Top Contributors</div>
+            <div id="leaderboard-content">
+                <div class="loading">Loading contributor data...</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-header">Contribution Distribution</div>
+            <div class="chart-bars" id="chart-bars">
+                <!-- Chart bars will be populated by JavaScript -->
+            </div>
+        </div>
+        
+        <footer>
+            <p>Data sourced from GitHub API • Updated in real-time</p>
+        </footer>
+    </div>
+
+    <script>
+        /* =========================================
+           BYAMN Learning | Contributor Leaderboard
+           ========================================= */
+        
+        const REPO_OWNER = 'DYHARDx';
+        const REPO_NAME = 'BYAMN-Learning';
+        const API_BASE = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
+        
+        // --- SCORING MATRIX ---
+        const SCORING = {
+            PR: {
+                L3: 1100,    // High Complexity
+                L2: 500,     // Medium Complexity
+                L1: 200,     // Low Complexity
+                DEFAULT: 100
+            }
+        };
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            initDashboard();
+        });
+        
+        /* =========================================
+           DATA AGGREGATION SYSTEM
+           ========================================= */
+        async function initDashboard() {
+            try {
+                // Fetch data
+                const [repoData, prData] = await Promise.all([
+                    fetch(API_BASE).then(res => res.json()),
+                    fetchAllPulls()
+                ]);
+        
+                // Calculate Scores
+                const leaderboard = calculateLeaderboard(prData);
+                
+                // Render UI Components
+                updateStats(leaderboard);
+                renderLeaderboardTable(leaderboard);
+                renderChart(leaderboard);
+        
+            } catch (error) {
+                console.warn("Error loading data. Showing mock data.", error);
+                loadMockData();
+            }
+        }
+        
+        // --- GITHUB API: FETCH ALL PRS ---
+        async function fetchAllPulls() {
+            let pulls = [];
+            let page = 1;
+            // Limit to 5 pages to get more data from this repository
+            while (page <= 5) {
+                try {
+                    const res = await fetch(`${API_BASE}/pulls?state=all&per_page=100&page=${page}`);
+                    if (!res.ok) break;
+                    const data = await res.json();
+                    if (!data.length) break;
+                    pulls = pulls.concat(data);
+                    page++;
+                } catch(e) { break; }
+            }
+            return pulls;
+        }
+        
+        /* =========================================
+           SCORING ALGORITHM
+           ========================================= */
+        function calculateLeaderboard(pulls) {
+            const userMap = {};
+        
+            // Date for Velocity Calculation (last 90 days for more activity)
+            const recentCutoff = new Date();
+            recentCutoff.setDate(recentCutoff.getDate() - 90);
+        
+            // Process Pull Requests
+            pulls.forEach(pr => {
+                if (!pr.merged_at) return; // Only merged PRs count
+                
+                const user = pr.user.login;
+                if (user.toLowerCase() === REPO_OWNER.toLowerCase()) return; // Exclude owner
+        
+                if (!userMap[user]) {
+                    userMap[user] = {
+                        login: user,
+                        avatar: pr.user.avatar_url,
+                        xp: 0,
+                        mass: 0,      
+                        velocity: 0,  
+                        prCount: 0
+                    };
+                }
+        
+                // Mass Calculation (Complexity based on labels)
+                let prPoints = SCORING.PR.DEFAULT;
+                let massGain = 5; // Base mass
+        
+                pr.labels.forEach(label => {
+                    const name = label.name.toLowerCase();
+                    if (name.includes('level 3') || name.includes('high')) { prPoints = SCORING.PR.L3; massGain = 30; }
+                    else if (name.includes('level 2') || name.includes('medium')) { prPoints = SCORING.PR.L2; massGain = 15; }
+                    else if (name.includes('level 1') || name.includes('low')) { prPoints = SCORING.PR.L1; massGain = 10; }
+                });
+        
+                userMap[user].xp += prPoints;
+                userMap[user].mass += massGain;
+                userMap[user].prCount++;
+        
+                // Velocity Calculation (Recent Activity)
+                if (new Date(pr.merged_at) > recentCutoff) {
+                    userMap[user].velocity += 10;
+                }
+            });
+        
+            // Finalize & Sort
+            const leaderboard = Object.values(userMap).sort((a, b) => b.xp - a.xp);
+            
+            // Assign Ranks, Classes & Status
+            return leaderboard.map((contributor, index) => {
+                contributor.rank = index + 1;
+                
+                // Determine Class (Level) - Adjusted for learning repo
+                if (contributor.xp >= 5000) contributor.level = 'MASTER';
+                else if (contributor.xp >= 2000) contributor.level = 'ADVANCED';
+                else if (contributor.xp >= 1000) contributor.level = 'INTERMEDIATE';
+                else if (contributor.xp >= 300) contributor.level = 'BEGINNER';
+                else contributor.level = 'NEWBIE';
+        
+                // Determine Status
+                if (contributor.velocity > 60) contributor.status = 'ACTIVE';
+                else if (contributor.velocity > 20) contributor.status = 'REGULAR';
+                else contributor.status = 'OCCASIONAL';
+        
+                return contributor;
+            });
+        }
+        
+        /* =========================================
+           RENDERING & UI UPDATES
+           ========================================= */
+        
+        function updateStats(data) {
+            document.getElementById('total-contributors').textContent = data.length;
+            
+            // Calculate total contributions
+            const totalContributions = data.reduce((sum, contributor) => sum + contributor.prCount, 0);
+            document.getElementById('total-contributions').textContent = totalContributions;
+        }
+        
+        function renderLeaderboardTable(data) {
+            const container = document.getElementById('leaderboard-content');
+            if (!data.length) {
+                container.innerHTML = '<div class="loading">No contributors found</div>';
+                return;
+            }
+            
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Contributor</th>
+                            <th>Level</th>
+                            <th>Activity</th>
+                            <th>XP</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Show top 30 contributors
+            data.slice(0, 30).forEach(contributor => {
+                // Dynamic colors based on level
+                let levelColor = '#4361ee';
+                if(contributor.level === 'MASTER') levelColor = '#e63946';
+                if(contributor.level === 'ADVANCED') levelColor = '#f72585';
+                if(contributor.level === 'INTERMEDIATE') levelColor = '#4895ef';
+                
+                const activityPercent = Math.min(contributor.velocity, 100);
+                
+                tableHTML += `
+                    <tr>
+                        <td class="rank-cell">#${contributor.rank}</td>
+                        <td class="contributor-cell">
+                            <img class="avatar" src="${contributor.avatar}" onerror="this.src='https://ui-avatars.com/api/?name=${contributor.login}&background=random'">
+                            <div>
+                                <div class="contributor-name">${contributor.login}</div>
+                                <div class="contributor-sub">${contributor.prCount} contributions</div>
+                            </div>
+                        </td>
+                        <td class="level-cell" style="color: ${levelColor}">
+                            <i class="${getLevelIcon(contributor.level)}"></i> ${contributor.level}
+                        </td>
+                        <td class="activity-bar">
+                            <div class="bar-bg">
+                                <div class="bar-fill" style="width: ${activityPercent}%"></div>
+                            </div>
+                            <span>${contributor.velocity}</span>
+                        </td>
+                        <td class="xp-cell">${contributor.xp.toLocaleString()}</td>
+                        <td><span class="status-badge status-${contributor.status.toLowerCase()}">${contributor.status}</span></td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = tableHTML;
+            
+            // Add search functionality
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const rows = container.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(term) ? '' : 'none';
+                });
+            });
+            
+            // Add export functionality
+            document.getElementById('export-btn').addEventListener('click', () => {
+                exportData(data);
+            });
+        }
+        
+        function renderChart(data) {
+            const container = document.getElementById('chart-bars');
+            container.innerHTML = '';
+            
+            // Visualize Top 15 XP distribution
+            const slice = data.slice(0, 15);
+            if (!slice.length) return;
+            
+            const maxScore = slice[0].xp;
+        
+            slice.forEach((contributor, i) => {
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                const height = Math.max((contributor.xp / maxScore) * 100, 5);
+                bar.style.height = `${height}%`;
+                bar.title = `${contributor.login}: ${contributor.xp} XP`;
+                container.appendChild(bar);
+            });
+        }
+        
+        // Function to get the appropriate icon for each level
+        function getLevelIcon(level) {
+            switch(level) {
+                case 'MASTER':
+                    return 'fas fa-graduation-cap';
+                case 'ADVANCED':
+                    return 'fas fa-book-open';
+                case 'INTERMEDIATE':
+                    return 'fas fa-book-reader';
+                case 'BEGINNER':
+                    return 'fas fa-book';
+                case 'NEWBIE':
+                    return 'fas fa-seedling';
+                default:
+                    return 'fas fa-user';
+            }
+        }
+        
+        function exportData(data) {
+            let csvContent = "Rank,Username,XP,Level,Status,Contributions,Mass,Velocity\n";
+            data.forEach(contributor => {
+                csvContent += `${contributor.rank},${contributor.login},${contributor.xp},${contributor.level},${contributor.status},${contributor.prCount},${contributor.mass},${contributor.velocity}\n`;
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `byamn_learning_contributors_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show notification
+            alert('Leaderboard data exported successfully!');
+        }
+        
+        function loadMockData() {
+            const mockData = [
+                { login: "dev_master", avatar: "https://ui-avatars.com/api/?name=dev_master&background=random", xp: 5500, velocity: 85, mass: 70, prCount: 18, rank: 1, level: "MASTER", status: "ACTIVE" },
+                { login: "advanced_coder", avatar: "https://ui-avatars.com/api/?name=advanced_coder&background=random", xp: 3200, velocity: 65, mass: 45, prCount: 14, rank: 2, level: "ADVANCED", status: "ACTIVE" },
+                { login: "intermediate_dev", avatar: "https://ui-avatars.com/api/?name=intermediate_dev&background=random", xp: 1800, velocity: 40, mass: 30, prCount: 10, rank: 3, level: "INTERMEDIATE", status: "REGULAR" },
+                { login: "beginner_coder", avatar: "https://ui-avatars.com/api/?name=beginner_coder&background=random", xp: 750, velocity: 25, mass: 15, prCount: 6, rank: 4, level: "BEGINNER", status: "REGULAR" },
+                { login: "new_contributor", avatar: "https://ui-avatars.com/api/?name=new_contributor&background=random", xp: 200, velocity: 10, mass: 5, prCount: 2, rank: 5, level: "NEWBIE", status: "OCCASIONAL" },
+            ];
+            
+            updateStats(mockData);
+            renderLeaderboardTable(mockData);
+            renderChart(mockData);
+        }
+    </script>
+</body>
+</html>
