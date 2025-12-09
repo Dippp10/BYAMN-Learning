@@ -1032,12 +1032,26 @@ body.theme-transition * {
   height: 100%;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
+  outline: none;
 }
 
 .course-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
   border-color: #c7d2fe;
+}
+
+/* Keyboard Navigation Focus Styles */
+.course-card:focus {
+  transform: translateY(-8px);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.5), 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: #4f46e5;
+}
+
+.course-card:focus-visible {
+  outline: 3px solid #4f46e5;
+  outline-offset: 2px;
 }
 
 /* Course image container with improved styling */
@@ -2675,6 +2689,27 @@ body.theme-transition * {
 }
 
 /* Dark mode override removed */
+
+/* Skip to Main Content Link - Accessibility */
+.skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--primary-600);
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  z-index: 100;
+  font-weight: 600;
+  transition: top 0.3s ease;
+}
+
+.skip-to-main:focus {
+  top: 0;
+  outline: 3px solid var(--primary-300);
+  outline-offset: 2px;
+}
 
 /* Progress Bar */
 .progress-bar {
