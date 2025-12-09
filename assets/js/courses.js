@@ -13,113 +13,9 @@ let bookmarkedCourses = new Set(); // Store bookmarked course IDs
 let searchDebounceTimer;
 let userCompletedCourses = new Set(); // Store user's completed course IDs
 
-// Function to load sample data for debugging purposes
-function loadSampleData() {
-    console.log('Loading sample data...');
-    
-    // Sample categories
-    const sampleCategories = [
-        { id: 'web-development', name: 'Web Development' },
-        { id: 'data-science', name: 'Data Science' },
-        { id: 'mobile-apps', name: 'Mobile Apps' },
-        { id: 'design', name: 'Design' }
-    ];
-    
-    // Sample courses
-    const sampleCourses = [
-        {
-            id: 'course-1',
-            title: 'JavaScript Fundamentals',
-            description: 'Learn the basics of JavaScript programming language.',
-            category: 'web-development',
-            difficulty: 'Beginner',
-            duration: '4 hours',
-            rating: 4.5,
-            enrollmentCount: 1250,
-            instructor: 'John Doe',
-            thumbnail: 'https://placehold.co/400x200/6366f1/white?text=JavaScript',
-            lessons: [
-                { id: 'lesson-1', title: 'Introduction to JavaScript', duration: 30 },
-                { id: 'lesson-2', title: 'Variables and Data Types', duration: 45 },
-                { id: 'lesson-3', title: 'Functions and Scope', duration: 60 }
-            ],
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'course-2',
-            title: 'React for Beginners',
-            description: 'Build modern web applications with React.',
-            category: 'web-development',
-            difficulty: 'Intermediate',
-            duration: '8 hours',
-            rating: 4.8,
-            enrollmentCount: 2100,
-            instructor: 'Jane Smith',
-            thumbnail: 'https://placehold.co/400x200/6366f1/white?text=React',
-            lessons: [
-                { id: 'lesson-1', title: 'React Components', duration: 45 },
-                { id: 'lesson-2', title: 'State and Props', duration: 60 },
-                { id: 'lesson-3', title: 'Hooks and Effects', duration: 75 }
-            ],
-            createdAt: new Date(Date.now() - 86400000).toISOString() // Yesterday
-        },
-        {
-            id: 'course-3',
-            title: 'Python Data Analysis',
-            description: 'Analyze data with Python and Pandas library.',
-            category: 'data-science',
-            difficulty: 'Intermediate',
-            duration: '12 hours',
-            rating: 4.7,
-            enrollmentCount: 1800,
-            instructor: 'Mike Johnson',
-            thumbnail: 'https://placehold.co/400x200/6366f1/white?text=Python',
-            lessons: [
-                { id: 'lesson-1', title: 'Introduction to Pandas', duration: 60 },
-                { id: 'lesson-2', title: 'Data Cleaning', duration: 90 },
-                { id: 'lesson-3', title: 'Data Visualization', duration: 75 }
-            ],
-            createdAt: new Date(Date.now() - 172800000).toISOString() // 2 days ago
-        }
-    ];
-    
-    // Set up category mapping
-    categoryMap = {};
-    sampleCategories.forEach(category => {
-        categoryMap[category.id] = category.name;
-    });
-    
-    // Store all courses
-    allCourses = sampleCourses;
-    
-    // Update UI
-    const coursesContainer = document.getElementById('courses-container');
-    const categoryFilterContainer = document.getElementById('category-filters');
-    const resultsCount = document.getElementById('results-count');
-    
-    if (coursesContainer) {
-        // Render courses
-        renderCourses(sampleCourses);
-    }
-    
-    if (categoryFilterContainer) {
-        // Render category filters
-        renderCategoryFilters(sampleCategories);
-    }
-    
-    if (resultsCount) {
-        resultsCount.textContent = `${sampleCourses.length} course${sampleCourses.length !== 1 ? 's' : ''} found`;
-    }
-    
-    // Set the "All Courses" button as active
-    const allCoursesButton = document.querySelector('.filter-btn[data-category="all"]');
-    if (allCoursesButton) {
-        allCoursesButton.classList.add('active');
-    }
-    
-    console.log('Sample data loaded successfully');
-    utils.showNotification('Sample data loaded successfully', 'success');
-}
+// Course Collections Integration
+let userCollections = []; // Store user collections
+let activeCollectionId = null; // Track active collection
 
 // Intersection Observer for lazy loading images
 const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -153,6 +49,37 @@ function saveBookmarkedCourses() {
     } catch (error) {
         console.error('Error saving bookmarked courses:', error);
     }
+}
+
+// Load user collections (add this function)
+async function loadUserCollections() {
+    if (window.collections && window.collections.loadUserCollections) {
+        try {
+            await window.collections.loadUserCollections();
+        } catch (error) {
+            console.error('Error loading collections:', error);
+        }
+    }
+}
+
+// Add this function to handle adding to collections from course cards
+function showAddToCollectionDropdown(courseId, buttonElement) {
+    if (window.collections && window.collections.showAddToCollectionDropdown) {
+        window.collections.showAddToCollectionDropdown(courseId, buttonElement);
+    } else {
+        // Fallback: show create collection modal
+        if (window.collections && window.collections.showCreateCollectionModal) {
+            window.collections.showCreateCollectionModal();
+        }
+    }
+}
+
+// Add to collection function (wrapper)
+async function addCourseToCollectionWrapper(collectionId, courseId) {
+    if (window.collections && window.collections.addCourseToCollection) {
+        return await window.collections.addCourseToCollection(collectionId, courseId);
+    }
+    return false;
 }
 
 // Toggle bookmark for a course
@@ -483,7 +410,7 @@ async function loadCourseReviews(courseId) {
                     <p class="text-sm text-gray-600 line-clamp-2">${review.comment || 'No comment provided.'}</p>
                 </div>
             `;
-        });
+        }); 
         
         if (reviews.length > 2) {
             reviewsHTML += `
@@ -733,6 +660,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load bookmarked courses
     loadBookmarkedCourses();
+    
+    // Load collections
+    loadUserCollections();
 
     // Wait a bit for Firebase to initialize, then load courses and categories
     setTimeout(loadCategoriesAndCourses, 1000);
@@ -1574,7 +1504,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Difficulty filters rendered');
     }
 
-    // Main function to render courses with prerequisites and reviews
+    // Main function to render courses with prerequisites, reviews and collections button
     async function renderCourses(courses) {
         if (!coursesContainer) return;
 
@@ -1696,6 +1626,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             </svg>
                         </button>
                         
+                        <!-- Add to Collection Button -->
+                        <button class="add-to-collection-btn absolute top-4 right-28 z-10 p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 transition-colors"
+                                data-course-id="${course.id}"
+                                title="Add to collection">
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                        </button>
+                        
                         <div class="h-48 overflow-hidden">
                             <img class="w-full h-full object-cover lazy-load" data-src="${course.thumbnail || 'https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80'}" alt="${course.title}" loading="lazy">
                         </div>
@@ -1770,6 +1710,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
             
+            // Add event listeners for collection buttons
+            document.querySelectorAll('.add-to-collection-btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const courseId = this.getAttribute('data-course-id');
+                    showAddToCollectionDropdown(courseId, this);
+                });
+            });
+            
             // Observe images for lazy loading
             document.querySelectorAll('.lazy-load').forEach(img => {
                 imageObserver.observe(img);
@@ -1811,6 +1760,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             data-course-id="${course.id}"
                             title="${isBookmarked ? 'Remove from bookmarks' : 'Save for later'}">
                         <svg class="h-6 w-6 bookmark-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Add to Collection Button -->
+                    <button class="add-to-collection-btn absolute top-4 right-28 z-10 p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 transition-colors"
+                            data-course-id="${course.id}"
+                            title="Add to collection">
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                         </svg>
                     </button>
@@ -1875,12 +1834,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         coursesContainer.innerHTML = coursesHTML;
         
-        // Add event listeners
+        // Add event listeners to bookmark buttons
         document.querySelectorAll('.bookmark-btn, .bookmark-btn-text').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const courseId = this.getAttribute('data-course-id');
                 toggleBookmark(courseId);
+            });
+        });
+        
+        // Add event listeners for collection buttons
+        document.querySelectorAll('.add-to-collection-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const courseId = this.getAttribute('data-course-id');
+                showAddToCollectionDropdown(courseId, this);
             });
         });
         
@@ -1895,3 +1863,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+
