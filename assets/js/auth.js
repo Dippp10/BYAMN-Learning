@@ -1,19 +1,22 @@
 // Authentication JavaScript for login and registration pages
 
 // Add a function to log activities to Firebase
-function logActivity(activityData) {
+async function logActivity(activityData) {
     try {
-        const { ref, push, set } = firebaseServices;
-        const activityRef = push(ref('activities'));
-        const activity = {
+        const { ref, push, set, db } = firebaseServices;
+
+        const activityRef = push(ref(db, 'activities'));
+
+        await set(activityRef, {
             ...activityData,
             timestamp: new Date().toISOString()
-        };
-        activityRef.set(activity);
+        });
     } catch (error) {
         console.error('Error logging activity:', error);
     }
 }
+
+
 
 function initializeAuth() {
     console.log('initializeAuth called');
