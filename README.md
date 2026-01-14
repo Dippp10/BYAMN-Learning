@@ -154,8 +154,49 @@ You can explore contribution history here:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file
-for details.
+### 📄 License Overview
+
+This project is licensed under the **MIT License**, a permissive open-source license that allows flexibility for use, modification, and distribution. See the full text in the [`LICENSE`](LICENSE) file for complete legal terms.  
+
+This section summarizes the key points of the MIT License to make it easier for users and contributors to understand their rights and obligations. :contentReference[oaicite:1]{index=1}
+
+---
+
+### ⚖️ Permissions
+
+Under the MIT License, you *are permitted* to:
+
+- **Use** the software for any purpose.
+- **Copy** and share the software with others.
+- **Modify** the source code to suit your needs.
+- **Distribute** original or modified versions of the software.
+- **Commercially use** or integrate it into proprietary products. :contentReference[oaicite:2]{index=2}
+
+---
+
+### 📌 Conditions
+
+The MIT License requires that:
+
+- The original **copyright notice** and **license text** be included in all copies or substantial portions of the software.
+- You must provide appropriate credit to the original authors when redistributing. :contentReference[oaicite:3]{index=3}
+
+---
+
+### 🚫 Limitations
+
+The MIT License *limits liability* by stating:
+
+- The software is provided **“as is”**, without warranty of any kind.
+- The authors or copyright holders are **not liable** for any claims, damages, or other liabilities arising from the use of the software. :contentReference[oaicite:4]{index=4}
+
+---
+
+### 📎 Reference
+
+For the full legal text of the license, see the project’s [`LICENSE`](LICENSE) file in this repository.
+
+
 
 ## Contact
 
